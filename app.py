@@ -9,6 +9,7 @@ import pydeck as pdk
 import streamlit as st
 from engine import avaliar, distancia_km
 from ranking_regic import ordenar_cenarios
+from academico import diagnosticar_academia
 
 st.set_page_config(page_title="Diagnóstico territorial da expansão do PROFGEO", layout="wide")
 st.title("Diagnóstico territorial da expansão do PROFGEO")
@@ -275,6 +276,11 @@ if resultados is not None and not resultados.empty:
         },
     )
     st.caption("As cores mostram exclusivamente a proximidade à rede. A REGIC nunca altera a ordem entre categorias A1–B4 distintas; enquanto essas categorias não estiverem validadas, só desempata dentro de cada faixa territorial. Dados acadêmicos ainda precisam de validação.")
+    with st.expander("Evidências acadêmicas — INEP e CAPES 2024", expanded=False):
+        st.caption("Quadro complementar de oferta de graduação em Geografia e pós-graduação vinculada à área de Geografia. O vínculo é verificado por instituição e município. Para localidades simuladas, os totais são municipais e não representam uma candidatura institucional.")
+        quadro_academico = diagnosticar_academia(resultados)
+        st.dataframe(quadro_academico, hide_index=True, use_container_width=True)
+        st.caption("Categorias A/B indicadas como 'a conferir' são sugestões, não classificação aprovada. A base de cursos CAPES não comprova linhas de pesquisa em ensino de Geografia. Estes indicadores não alteram o ranking até a conclusão da validação.")
     with st.expander("Exportação e dados técnicos", expanded=False):
         st.download_button("Baixar ranking completo (Excel XLSX)",
                            montar_planilha_excel(quadro, "Ranking"),
