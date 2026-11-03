@@ -1,4 +1,5 @@
 import pandas as pd
+import pydeck as pdk
 import streamlit as st
 from engine import avaliar
 
@@ -15,7 +16,24 @@ rede["polo"] = rede["instituicao"] + " — " + rede["campus"]
 modelo_polos = rede[["polo", "municipio", "uf", "lat", "lon", "fonte"]].copy()
 st.subheader("Rede existente do PROFGEO — 18 instituições")
 st.caption("Pontos municipais aproximados; alguns campi ainda precisam de validação.")
-st.map(rede[["lat", "lon"]].dropna())
+modo_mapa = st.radio("Visualização cartográfica", ["Mapa de calor", "Localização dos polos"], horizontal=True)
+raio = st.slider("Raio visual da concentração (pixels)", 15, 90, 40, 5) if modo_mapa == "Mapa de calor" else 40
+pontos = rede.dropna(subset=["lat", "lon"]).copy()
+pontos["lat"] = pd.to_numeric(pontos["lat"], errors="coerce")
+pontos["lon"] = pd.to_numeric(pontos["lon"], errors="coerce")
+pontos = pontos.dropna(subset=["lat", "lon"])
+pontos["peso"] = 1
+camadas = []
+if modo_mapa == "Mapa de calor":
+    camadas.append(pdk.Layer("HeatmapLayer", data=pontos, get_position="[lon, lat]", get_weight="peso", radius_pixels=raio, intensity=1, threshold=0.03, pickable=False))
+camadas.append(pdk.Layer("ScatterplotLayer", data=pontos, get_position="[lon, lat]", get_radius=12000 if modo_mapa == "Localização dos polos" else 6000, radius_min_pixels=4, radius_max_pixels=10, get_fill_color=[23, 87, 149, 210] if modo_mapa == "Localização dos polos" else [255, 255, 255, 210], get_line_color=[12, 32, 55], line_width_min_pixels=1, stroked=True, pickable=True))
+st.pydeck_chart(pdk.Deck(
+    map_style="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
+    initial_view_state=pdk.ViewState(latitude=-14.5, longitude=-52.5, zoom=3.25, pitch=0),
+    layers=camadas,
+    tooltip={"html": "<b>{instituicao}</b><br/>{campus}<br/>{municipio} — {uf}", "style": {"color": "white"}}
+))
+st.caption("Calor = concentração visual de pontos municipais dos polos existentes, não demanda educacional, acessibilidade ou prioridade de expansão. O raio é apenas um parâmetro gráfico; não corresponde a quilômetros. Polos próximos podem se sobrepor.")
 with st.expander("Consultar polos e ressalvas"):
     st.dataframe(rede, use_container_width=True, hide_index=True)
     st.download_button("Baixar rede de referência", rede.to_csv(index=False).encode("utf-8-sig"), "rede_existente_18_polos.csv", "text/csv")
