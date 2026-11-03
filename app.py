@@ -66,7 +66,8 @@ if "resultado" in st.session_state:
         st.map(resultado[["lat", "lon"]].dropna())
 
 st.divider()
-st.subheader("Distância dos municípios brasileiros à rede existente")
+st.subheader("Diagnóstico territorial da expansão do PROFGEO")
+camada_territorial = st.radio("Camada temática", ["Distância à rede", "Oportunidade territorial preliminar"], horizontal=True, key="camada_territorial")
 st.caption("Análise de distância geodésica entre pontos representativos municipais do IBGE 2022 e os 18 polos. Não representa acessibilidade real.")
 municipios_arquivo = st.file_uploader("Carregar pontos municipais IBGE 2022 (CSV)", type="csv", key="municipios")
 if municipios_arquivo is None:
@@ -96,13 +97,26 @@ else:
         municipios["faixa"] = pd.cut(municipios["distancia_km"], bins=[-0.01, 100, 200, 300, np.inf], labels=["Até 100 km", "100–200 km", "200–300 km", "Mais de 300 km"], include_lowest=True)
         paleta = {"Até 100 km": [38, 136, 94, 180], "100–200 km": [119, 185, 84, 180], "200–300 km": [245, 171, 64, 185], "Mais de 300 km": [197, 65, 62, 195]}
         municipios["cor"] = municipios["faixa"].astype(str).map(paleta)
-        st.markdown("**Legenda — distância geodésica ao polo PROFGEO mais próximo (km)**")
+        oportunidades = {
+            "Até 100 km": "Menor lacuna de proximidade",
+            "100–200 km": "Lacuna moderada de proximidade",
+            "200–300 km": "Lacuna elevada de proximidade",
+            "Mais de 300 km": "Lacuna muito elevada de proximidade",
+        }
+        municipios["oportunidade_preliminar"] = municipios["faixa"].astype(str).map(oportunidades)
+        if camada_territorial == "Oportunidade territorial preliminar":
+            st.info("Camada exploratória baseada SOMENTE na distância à rede. Uma lacuna de proximidade maior sugere investigar a expansão, mas não demonstra potencial institucional, demanda, elegibilidade ou acessibilidade.")
+            st.markdown("**Legenda — oportunidade de investigação por lacuna de proximidade**")
+        else:
+            st.markdown("**Legenda — distância geodésica ao polo PROFGEO mais próximo (km)**")
         legenda = [
             ("#26885E", "Até 100 km"),
             ("#77B954", "Mais de 100 até 200 km"),
             ("#F5AB40", "Mais de 200 até 300 km"),
             ("#C5413E", "Mais de 300 km"),
         ]
+        if camada_territorial == "Oportunidade territorial preliminar":
+            legenda = [(cor, oportunidades[faixa]) for (cor, _), faixa in zip(legenda, ["Até 100 km", "100–200 km", "200–300 km", "Mais de 300 km"])]
         cols_legenda = st.columns(4)
         for coluna, (cor, rotulo) in zip(cols_legenda, legenda):
             with coluna:
@@ -116,11 +130,11 @@ else:
             map_style="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
             initial_view_state=pdk.ViewState(latitude=-14.5, longitude=-52.5, zoom=3.2),
             layers=[pdk.Layer("ScatterplotLayer", data=municipios, get_position="[lon, lat]", get_fill_color="cor", get_radius=7500, radius_min_pixels=2, radius_max_pixels=8, pickable=True)],
-            tooltip={"html": "<b>{municipio} ({uf})</b><br/>Polo mais próximo: {polo_proximo}<br/>Distância: {distancia_km} km<br/>{faixa}"}
+            tooltip={"html": "<b>{municipio} ({uf})</b><br/>Polo mais próximo: {polo_proximo}<br/>Distância: {distancia_km} km<br/>{faixa}<br/>{oportunidade_preliminar}"}
         ))
         resumo = municipios.groupby("faixa", observed=False).size().rename("municípios").reset_index()
         st.dataframe(resumo, use_container_width=True, hide_index=True)
-        st.download_button("Baixar distâncias de todos os municípios", municipios.drop(columns=["cor"]).to_csv(index=False).encode("utf-8-sig"), "profgeo_distancias_municipios_2022.csv", "text/csv")
+        st.download_button("Baixar diagnóstico territorial municipal", municipios.drop(columns=["cor"]).to_csv(index=False).encode("utf-8-sig"), "profgeo_distancias_municipios_2022.csv", "text/csv")
         st.caption("Mapa pontual, não coroplético: cada círculo corresponde a um ponto municipal, sem preencher o polígono do município. Distância municipal não é classificação institucional A1–B4.")
     except Exception as exc:
         st.error(f"Não foi possível calcular as distâncias: {exc}")
