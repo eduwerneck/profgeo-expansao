@@ -19,9 +19,9 @@ class AcademicoTestes(unittest.TestCase):
              "municipio_ibge":"3143302","codigo_curso":"33","modalidade_cod":"1","matriculas":"40"},
         ])
         self.capes=pd.DataFrame([
-            {"emec_ies":"100","municipio":"Londrina","uf":"PR","codigo_programa":"ABC"},
-            {"emec_ies":"200","municipio":"Londrina","uf":"PR","codigo_programa":"DEF"},
-            {"emec_ies":"300","municipio":"Montes Claros","uf":"MG","codigo_programa":"GHI"},
+            {"emec_ies":"100","municipio":"Londrina","uf":"PR","codigo_programa":"ABC","nome_ies":"UNIVERSIDADE ESTADUAL DE LONDRINA","situacao":"EM FUNCIONAMENTO"},
+            {"emec_ies":"200","municipio":"Londrina","uf":"PR","codigo_programa":"DEF","nome_ies":"OUTRA UNIVERSIDADE EM LONDRINA","situacao":"EM FUNCIONAMENTO"},
+            {"emec_ies":"300","municipio":"Montes Claros","uf":"MG","codigo_programa":"GHI","nome_ies":"INSTITUIÇÃO TESTE","situacao":"EM PROJETO"},
         ])
 
     def test_ies_nao_herda_cursos_de_outra_instituicao(self):
@@ -34,7 +34,7 @@ class AcademicoTestes(unittest.TestCase):
         self.assertEqual(uel["Código IES (INEP)"],"100")
         self.assertEqual(uel["Graduações em Geografia (INEP)"],1)
         self.assertEqual(uel["Matrículas em Geografia (INEP)"],120)
-        self.assertEqual(uel["Programas de Geografia (CAPES)"],1)
+        self.assertEqual(uel["Programas em funcionamento (CAPES)"],1)
         self.assertEqual(uel["Categoria acadêmica sugerida"],"A (a conferir)")
         self.assertEqual(sim["Categoria acadêmica sugerida"],"Pendente")
         self.assertIn("simulado",sim["Estado de verificação"].lower())
