@@ -162,6 +162,26 @@ with st.expander("Importar e validar registros de graduação e pós-graduação
             st.error(f"Erro na validação dos registros: {exc}")
 
 st.divider()
+st.subheader("Subsídio técnico e deliberação da comissão")
+st.caption("O diagnóstico métrico orienta a análise, mas não constitui decisão de credenciamento ou expansão.")
+st.markdown("**Procedimento em duas etapas:** (1) aferição técnica com dados e critérios rastreáveis; (2) avaliação estratégica e deliberação fundamentada pela comissão.")
+with st.expander("Registro de avaliação da comissão (exportação local)", expanded=False):
+    st.info("O registro é independente da classificação métrica. Uma divergência não altera os dados nem a classificação calculada.")
+    instituicao_avaliada = st.text_input("Instituição/campus em avaliação", key="comissao_instituicao")
+    decisao_comissao = st.selectbox("Encaminhamento proposto", ["Pendente de deliberação", "Solicitar informações adicionais", "Encaminhar para avaliação estratégica", "Parecer favorável", "Parecer desfavorável"], key="comissao_decisao")
+    justificativa_comissao = st.text_area("Justificativa fundamentada (contexto territorial e institucional)", key="comissao_justificativa")
+    referencia_comissao = st.text_input("Referência documental ou ata (opcional)", key="comissao_referencia")
+    registro_comissao = pd.DataFrame([{
+        "instituicao_campus": instituicao_avaliada,
+        "encaminhamento": decisao_comissao,
+        "justificativa": justificativa_comissao,
+        "referencia": referencia_comissao,
+        "carater": "Registro preliminar; não equivale a decisão oficial"
+    }])
+    st.download_button("Exportar registro da comissão (CSV)", registro_comissao.to_csv(index=False).encode("utf-8-sig"), "registro_comissao_profgeo.csv", "text/csv", disabled=not (instituicao_avaliada.strip() and justificativa_comissao.strip()))
+st.caption("Indicadores e deliberações devem ser arquivados separadamente. Pesos e índices compostos dependerão de protocolo aprovado e análise de sensibilidade.")
+
+st.divider()
 st.subheader("UEL × IFPR — contexto histórico")
 st.write("Conforme informado pela comissão: houve empate, e o IFPR em Jaguariaíva foi selecionado pelo critério de interiorização. O cálculo territorial não reproduz automaticamente essa decisão.")
 st.caption("Para validação retrospectiva: informar os polos existentes à época, a condição A/B dos campi e os dados oficiais da REGIC. Não usar polos implantados posteriormente.")
