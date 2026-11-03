@@ -39,6 +39,17 @@ class AcademicoTestes(unittest.TestCase):
         self.assertEqual(sim["Categoria acadêmica sugerida"],"Pendente")
         self.assertIn("simulado",sim["Estado de verificação"].lower())
 
+    def test_capes_sem_inep_continua_pendente_mas_exibe_evidencia(self):
+        def fonte(nome):
+            return None if nome.startswith("inep_") else self.capes.copy()
+        with patch("academico.carregar_csv",side_effect=fonte):
+            r=diagnosticar_academia(self.candidatos)
+        self.assertEqual(r.iloc[0]["Programas em funcionamento (CAPES)"],1)
+        self.assertEqual(r.iloc[0]["Categoria acadêmica sugerida"],"Pendente")
+        self.assertEqual(r.iloc[0]["Programas com curso em projeto (CAPES)"],0)
+        self.assertEqual(r.iloc[1]["Programas em funcionamento (CAPES)"],0)
+        self.assertEqual(r.iloc[1]["Programas com curso em projeto (CAPES)"],1)
+
     def test_sem_capes_nao_vira_categoria_b(self):
         def fonte(nome):
             return self.inep.copy() if nome.startswith("inep_") else None
