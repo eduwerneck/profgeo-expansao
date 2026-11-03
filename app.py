@@ -7,6 +7,7 @@ import pandas as pd
 import pydeck as pdk
 import streamlit as st
 from engine import avaliar, distancia_km
+from ranking_regic import ordenar_cenarios
 
 st.set_page_config(page_title="Diagnóstico territorial da expansão do PROFGEO", layout="wide")
 st.title("Diagnóstico territorial da expansão do PROFGEO")
@@ -195,7 +196,7 @@ with st.form("controles_expansao"):
 if calcular:
     try:
         candidatos = normalizar_candidatos(pd.read_csv(arq_candidatos, keep_default_na=False) if arq_candidatos else ler_pilotos())
-        resultado = anexar_regic(avaliar(candidatos, sedes_padrao))
+        resultado = ordenar_cenarios(anexar_regic(avaliar(candidatos, sedes_padrao)))
         st.session_state["resultado_expansao"] = resultado
         st.session_state["versao_mapa"] = st.session_state.get("versao_mapa", 0) + 1
         st.rerun()
@@ -205,6 +206,23 @@ if calcular:
 if resultados is not None and not resultados.empty:
     if "status_regic" in resultados.columns:
         st.caption("REGIC das candidaturas: " + " | ".join(resultados["status_regic"].astype(str).unique()))
+    if "rank_cenario_regic" in resultados.columns:
+        with st.expander("Comparar rankings: distância × REGIC", expanded=False):
+            if resultados["rank_cenario_regic"].isna().any():
+                st.warning("Não foi possível calcular o cenário REGIC: faltam hierarquias verificadas. As prioridades não são inferidas.")
+            else:
+                st.caption("Simulação: primeiro a faixa territorial (>300, 200–300, 100–200 ou até 100 km); depois o nível REGIC; depois a distância exata. Não é uma classificação institucional.")
+                colunas = ["instituicao", "municipio", "distancia_km", "hierarquia_regic",
+                           "rank_distancia", "rank_cenario_regic", "variacao_posicoes"]
+                comparacao = resultados[colunas].sort_values("rank_cenario_regic")
+                st.dataframe(comparacao.rename(columns={
+                    "instituicao": "Instituição", "municipio": "Município",
+                    "distancia_km": "Distância (km)", "hierarquia_regic": "REGIC 2018",
+                    "rank_distancia": "Posição por distância",
+                    "rank_cenario_regic": "Posição com REGIC",
+                    "variacao_posicoes": "Mudança (posições)"
+                }), hide_index=True, use_container_width=True)
+                st.caption("Mudança positiva indica subida no ranking. A hierarquia REGIC atua apenas dentro da mesma faixa de distância.")
     st.download_button("Baixar resultados (CSV)", resultados.to_csv(index=False).encode("utf-8-sig"), "diagnostico_expansao_profgeo.csv", mime="text/csv", use_container_width=True)
     st.caption("Resultado calculado. REGIC 2018 é dimensão descritiva independente, sem peso na classificação por distância. Tipo A/B permanece pendente quando não comprovado.")
 else:
