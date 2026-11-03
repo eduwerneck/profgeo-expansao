@@ -10,7 +10,15 @@ with st.expander("Como funciona a classificação"):
     st.write("A = campus com pós-graduação em Geografia; B = campus com graduação em Geografia sem pós-graduação. A1/B1: >300 km; A2/B2: >200–300 km; A3/B3: >100–200 km; A4/B4: até 100 km.")
     st.write("Distâncias em linha reta, sem estimativa de tempo de viagem. REGIC e acessibilidade amazônica ainda não são calculadas.")
 base = pd.read_csv("candidatos_exemplo.csv", keep_default_na=False)
-modelo_polos = pd.read_csv("polos_modelo.csv")
+rede = pd.read_csv("rede_existente_18_polos.csv")
+rede["polo"] = rede["instituicao"] + " — " + rede["campus"]
+modelo_polos = rede[["polo", "municipio", "uf", "lat", "lon", "fonte"]].copy()
+st.subheader("Rede existente do PROFGEO — 18 instituições")
+st.caption("Pontos municipais aproximados; alguns campi ainda precisam de validação.")
+st.map(rede[["lat", "lon"]].dropna())
+with st.expander("Consultar polos e ressalvas"):
+    st.dataframe(rede, use_container_width=True, hide_index=True)
+    st.download_button("Baixar rede de referência", rede.to_csv(index=False).encode("utf-8-sig"), "rede_existente_18_polos.csv", "text/csv")
 esq, dir = st.columns(2)
 with esq:
     st.subheader("Candidaturas")
@@ -19,11 +27,13 @@ with esq:
     candidatos = st.data_editor(candidatos, num_rows="dynamic", hide_index=True, use_container_width=True)
     st.download_button("Baixar modelo de candidaturas", base.to_csv(index=False).encode("utf-8-sig"), "candidatos_exemplo.csv", "text/csv")
 with dir:
-    st.subheader("Polos existentes na data de referência")
+    st.subheader("Polos existentes — rede atual")
     arquivo_polos = st.file_uploader("Importar polos existentes CSV", type="csv", key="p")
     polos = pd.read_csv(arquivo_polos) if arquivo_polos else modelo_polos
     polos = st.data_editor(polos, num_rows="dynamic", hide_index=True, use_container_width=True)
-    st.download_button("Baixar modelo de polos", modelo_polos.to_csv(index=False).encode("utf-8-sig"), "polos_modelo.csv", "text/csv")
+    st.download_button("Baixar polos de referência", modelo_polos.to_csv(index=False).encode("utf-8-sig"), "polos_modelo.csv", "text/csv")
+if candidatos["tipo"].astype(str).str.strip().eq("").any():
+    st.warning("Informe o tipo A/B dos candidatos para obter a categoria territorial.")
 if st.button("Calcular prioridades territoriais", type="primary"):
     try:
         st.session_state["resultado"] = avaliar(candidatos, polos)
