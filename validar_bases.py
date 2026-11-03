@@ -33,9 +33,16 @@ def validar():
         return set(codigos)
 
     regic_ids = codigos_unicos(regic, "REGIC", 5570)
-    indice_ids = codigos_unicos(indice, "Índice municipal", 5570)
-    if regic_ids != indice_ids:
-        erros.append("Diferença entre códigos dos municípios REGIC e malha IBGE")
+    indice_ids = codigos_unicos(indice, "Índice cartográfico IBGE", 5572)
+    # A malha IBGE 2022 inclui Lagoa Mirim e Lagoa dos Patos como unidades
+    # cartográficas especiais, não municípios. Preservá-las no mapa, mas
+    # excluí-las do pareamento com a classificação urbana REGIC.
+    unidades_nao_municipais = {"4300001": "Lagoa Mirim", "4300002": "Lagoa dos Patos"}
+    diferenca = indice_ids - regic_ids
+    if diferenca != set(unidades_nao_municipais) or regic_ids - indice_ids:
+        erros.append(f"Diferença inesperada de códigos IBGE/REGIC: {sorted(diferenca)}")
+    else:
+        alertas.append("Malha com 5570 municípios e duas lagoas especiais (Mirim e Patos): diferença prevista")
 
     if len(polos) != 18:
         erros.append(f"Rede de polos: esperado 18, encontrado {len(polos)}")
