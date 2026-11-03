@@ -64,19 +64,35 @@ def diagnosticar_academia(candidatos):
         if capes is not None:
             municipio=capes[capes["_municipio"].eq(normalizar(mun)) & capes["_uf"].eq(uf)]
             if alias:
+                # CAPES permite identificar a instituição pela denominação e
+                # pelo município mesmo antes de concluir a extração INEP.
+                # O e-MEC é conferido quando o INEP estiver disponível.
+                candidatos_capes=municipio[
+                    municipio["nome_ies"].apply(normalizar).str.contains(alias,regex=False)
+                ].copy()
                 if id_ies:
-                    c_capes=municipio[municipio["_codigo_ies"].eq(id_ies)].copy()
-                else:
-                    # Não afirmar equivalência apenas por sigla caso falte e-MEC.
-                    c_capes=pd.DataFrame()
+                    candidatos_capes=candidatos_capes[
+                        candidatos_capes["_codigo_ies"].eq(id_ies)
+                    ]
+                ids_capes=set(candidatos_capes["_codigo_ies"].dropna().astype(str))
+                if len(ids_capes)==1:
+                    c_capes=candidatos_capes
             else:
                 c_capes=municipio.copy()
         disponiveis=(inep is not None) and (capes is not None)
         tem_vinculo=bool(alias and id_ies)
         presenciais=(c_inep["modalidade_cod"].astype(str).str.strip().eq("1").sum()
                      if not c_inep.empty and "modalidade_cod" in c_inep else None)
-        programas=(c_capes["codigo_programa"].nunique()
-                   if not c_capes.empty and "codigo_programa" in c_capes else 0)
+        programas=(c_capes.loc[
+            c_capes["situacao"].apply(normalizar).eq("EM FUNCIONAMENTO"),
+            "codigo_programa"
+        ].nunique() if not c_capes.empty and "codigo_programa" in c_capes else 0)
+        projetos=(c_capes.loc[
+            c_capes["situacao"].apply(normalizar).eq("EM PROJETO"),
+            "codigo_programa"
+        ].nunique() if not c_capes.empty and "codigo_programa" in c_capes else 0)
+        cursos_ativos=(int(c_capes["situacao"].apply(normalizar).eq("EM FUNCIONAMENTO").sum())
+                      if not c_capes.empty and "situacao" in c_capes else 0)
         graduacoes=(c_inep["codigo_curso"].nunique()
                     if not c_inep.empty and "codigo_curso" in c_inep else 0)
         matr=None
@@ -87,7 +103,11 @@ def diagnosticar_academia(candidatos):
         if disponiveis and tem_vinculo:
             if programas>0:tipo="A (a conferir)"
             elif presenciais and presenciais>0:tipo="B (a conferir)"
-        if not disponiveis:status="Aguardando processamento de INEP/CAPES"
+        if capes is not None and inep is None:
+            status=("CAPES 2024 vinculada; graduação INEP pendente" if alias and not c_capes.empty
+                    else "CAPES 2024: diagnóstico municipal; instituição não definida" if not alias
+                    else "CAPES 2024: programa não encontrado na instituição/local; INEP pendente")
+        elif not disponiveis:status="Aguardando processamento de INEP/CAPES"
         elif not alias:status="Município simulado; sem instituição candidata vinculada"
         elif not tem_vinculo:status="IES não identificada univocamente no município pelo INEP"
         else:status="Vínculo IES/município confirmado; avaliação acadêmica preliminar"
@@ -97,7 +117,9 @@ def diagnosticar_academia(candidatos):
             "Graduações em Geografia (INEP)":graduacoes if inep is not None else None,
             "Cursos presenciais em Geografia (INEP)":presenciais,
             "Matrículas em Geografia (INEP)":matr,
-            "Programas de Geografia (CAPES)":programas if capes is not None else None,
+            "Programas em funcionamento (CAPES)":programas if capes is not None else None,
+            "Cursos em funcionamento (CAPES)":cursos_ativos if capes is not None else None,
+            "Programas com curso em projeto (CAPES)":projetos if capes is not None else None,
             "Categoria acadêmica sugerida":tipo,
             "Estado de verificação":status,
         })
