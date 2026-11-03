@@ -1,0 +1,3 @@
+instituicao,campus,municipio,uf,codigo_ibge,lat,lon,tipo,referencia_espacial,status_georreferenciamento,observacoes
+UNESP,Presidente Prudente,Presidente Prudente,SP,3541406,-22.1225167,-51.3882528,,marco central da sede municipal,proxy municipal; campus a georreferenciar,"INEP/CAPES pendentes; coordenadas da sede municipal segundo prefeitura; classificação A/B não atribuída"
+UFMT,Araguaia - Unidade II,Barra do Garças,MT,5101803,-15.89,-52.26,,sede municipal IBGE,proxy municipal; campus a georreferenciar,"Unidade II abriga Geografia segundo manual UFMT; coordenadas municipais IBGE; classificação A/B não atribuída"
