@@ -64,6 +64,52 @@ if "resultado" in st.session_state:
     st.download_button("Exportar resultado CSV", resultado.to_csv(index=False).encode("utf-8-sig"), "resultados_profgeo.csv", "text/csv")
     if not resultado.empty:
         st.map(resultado[["lat", "lon"]].dropna())
+
+st.divider()
+st.subheader("Distância dos municípios brasileiros à rede existente")
+st.caption("Análise de distância geodésica entre pontos representativos municipais do IBGE 2022 e os 18 polos. Não representa acessibilidade real.")
+municipios_arquivo = st.file_uploader("Carregar pontos municipais IBGE 2022 (CSV)", type="csv", key="municipios")
+if municipios_arquivo is None:
+    st.info("Para habilitar o mapa nacional, carregue o arquivo municipios_ibge_2022_pontos.csv disponibilizado com o projeto. O cálculo é executado no navegador após o envio do arquivo.")
+else:
+    try:
+        import numpy as np
+        municipios = pd.read_csv(municipios_arquivo, dtype={"codigo_ibge": str})
+        exigidas = {"codigo_ibge", "municipio", "uf", "lat", "lon"}
+        if not exigidas.issubset(municipios.columns):
+            raise ValueError("CSV municipal deve conter: codigo_ibge, municipio, uf, lat, lon.")
+        if municipios["codigo_ibge"].duplicated().any():
+            raise ValueError("Há códigos IBGE duplicados no arquivo.")
+        municipios["lat"] = pd.to_numeric(municipios["lat"], errors="coerce")
+        municipios["lon"] = pd.to_numeric(municipios["lon"], errors="coerce")
+        if municipios[["lat", "lon"]].isna().any().any():
+            raise ValueError("Há coordenadas municipais ausentes ou inválidas.")
+        pl = np.radians(rede[["lat", "lon"]].to_numpy(dtype=float))
+        ml = np.radians(municipios[["lat", "lon"]].to_numpy(dtype=float))
+        dlat = ml[:, None, 0] - pl[None, :, 0]
+        dlon = ml[:, None, 1] - pl[None, :, 1]
+        h = np.sin(dlat / 2) ** 2 + np.cos(ml[:, None, 0]) * np.cos(pl[None, :, 0]) * np.sin(dlon / 2) ** 2
+        dist = 6371.0088 * 2 * np.arcsin(np.sqrt(np.clip(h, 0, 1)))
+        indice = np.argmin(dist, axis=1)
+        municipios["distancia_km"] = np.round(dist[np.arange(len(municipios)), indice], 1)
+        municipios["polo_proximo"] = rede.iloc[indice]["instituicao"].to_numpy()
+        municipios["faixa"] = pd.cut(municipios["distancia_km"], bins=[-0.01, 100, 200, 300, np.inf], labels=["Até 100 km", "100–200 km", "200–300 km", "Mais de 300 km"], include_lowest=True)
+        paleta = {"Até 100 km": [38, 136, 94, 180], "100–200 km": [119, 185, 84, 180], "200–300 km": [245, 171, 64, 185], "Mais de 300 km": [197, 65, 62, 195]}
+        municipios["cor"] = municipios["faixa"].astype(str).map(paleta)
+        st.caption("Legenda: verde escuro até 100 km; verde claro 100–200 km; laranja 200–300 km; vermelho acima de 300 km.")
+        st.pydeck_chart(pdk.Deck(
+            map_style="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
+            initial_view_state=pdk.ViewState(latitude=-14.5, longitude=-52.5, zoom=3.2),
+            layers=[pdk.Layer("ScatterplotLayer", data=municipios, get_position="[lon, lat]", get_fill_color="cor", get_radius=7500, radius_min_pixels=2, radius_max_pixels=8, pickable=True)],
+            tooltip={"html": "<b>{municipio} ({uf})</b><br/>Polo mais próximo: {polo_proximo}<br/>Distância: {distancia_km} km<br/>{faixa}"}
+        ))
+        resumo = municipios.groupby("faixa", observed=False).size().rename("municípios").reset_index()
+        st.dataframe(resumo, use_container_width=True, hide_index=True)
+        st.download_button("Baixar distâncias de todos os municípios", municipios.drop(columns=["cor"]).to_csv(index=False).encode("utf-8-sig"), "profgeo_distancias_municipios_2022.csv", "text/csv")
+        st.caption("Mapa pontual, não coroplético: cada círculo corresponde a um ponto municipal, sem preencher o polígono do município. Distância municipal não é classificação institucional A1–B4.")
+    except Exception as exc:
+        st.error(f"Não foi possível calcular as distâncias: {exc}")
+
 st.divider()
 st.subheader("UEL × IFPR — contexto histórico")
 st.write("Conforme informado pela comissão: houve empate, e o IFPR em Jaguariaíva foi selecionado pelo critério de interiorização. O cálculo territorial não reproduz automaticamente essa decisão.")
