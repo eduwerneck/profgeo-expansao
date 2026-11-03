@@ -26,13 +26,16 @@ def normalizar(s):
     return "".join(c for c in unicodedata.normalize("NFKD", str(s).lower()) if not unicodedata.combining(c)).strip()
 
 def codigo(s):
-    if s is None or isinstance(s,bool):
+    """Aceita apenas códigos municipais IBGE de sete dígitos."""
+    if s is None or isinstance(s, bool):
         return ""
-    if isinstance(s,(int,float)):
+    if isinstance(s, (int, float)):
         x = str(int(s)) if float(s).is_integer() else ""
     else:
-        x = str(s).strip().replace(".0","")
-    return x if re.fullmatch(r"\\d{7}",x) else ""
+        x = str(s).strip()
+        if x.endswith(".0"):
+            x = x[:-2]
+    return x if len(x) == 7 and x.isdecimal() else ""
 
 def obter():
     p=Links()
