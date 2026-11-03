@@ -215,7 +215,12 @@ for coluna, (cor, nivel, distancia) in zip(colunas_legenda, legenda):
         )
 st.caption("● Azul: polo atual | ● Vermelho com contorno preto: candidatura (passe o cursor). As cores representam somente a lacuna de proximidade; não determinam prioridade institucional, elegibilidade ou decisão da comissão.")
 
-st.download_button("Baixar modelo com seis localidades (Excel XLSX)",\n                   montar_planilha_excel(ler_pilotos(), "Candidaturas"),\n                   "candidaturas_simulacao_6.xlsx",\n                   mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")\n\nwith st.form("controles_expansao"):
+st.download_button("Baixar modelo com seis localidades (Excel XLSX)",
+                   montar_planilha_excel(ler_pilotos(), "Candidaturas"),
+                   "candidaturas_simulacao_6.xlsx",
+                   mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+with st.form("controles_expansao"):
     arq_candidatos = st.file_uploader("Carregar candidaturas (Excel XLSX ou CSV)", type=["xlsx", "csv"])
     calcular = st.form_submit_button("Calcular expansão", type="primary", use_container_width=True)
 
@@ -271,7 +276,11 @@ if resultados is not None and not resultados.empty:
     )
     st.caption("As cores representam exclusivamente a lacuna de proximidade à rede. A REGIC reorganiza candidaturas dentro da mesma faixa; cursos, matrículas e análise da comissão ainda não entram neste ranking.")
     with st.expander("Exportação e dados técnicos", expanded=False):
-        st.download_button("Baixar ranking completo (Excel XLSX)",\n                           montar_planilha_excel(quadro, "Ranking"),\n                           "ranking_expansao_profgeo.xlsx",\n                           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")\n        st.download_button("Baixar resultados completos (CSV)",
+        st.download_button("Baixar ranking completo (Excel XLSX)",
+                           montar_planilha_excel(quadro, "Ranking"),
+                           "ranking_expansao_profgeo.xlsx",
+                           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        st.download_button("Baixar resultados completos (CSV)",
                            resultados.to_csv(index=False).encode("utf-8-sig"),
                            "diagnostico_expansao_profgeo.csv", mime="text/csv")
 else:
