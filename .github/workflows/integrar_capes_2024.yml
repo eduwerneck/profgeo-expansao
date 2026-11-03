@@ -1,13 +1,10 @@
-name: Integrar CAPES Geografia 2024
+name: Integrar CAPES Geografia 2024 - arquivo validado
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - "extrair_capes_2024.py"
-      - ".github/workflows/integrar_capes_2024.yml"
 jobs:
   extrair:
     runs-on: ubuntu-latest
+    timeout-minutes: 40
     permissions:
       contents: write
     steps:
@@ -16,16 +13,22 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install pandas openpyxl requests
-      - name: Extrair Geografia CAPES 2024
-        id: extrair
+      - name: Obter arquivo oficial enviado à versão de fontes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release download fontes-2024 --repo "$GITHUB_REPOSITORY" --pattern "br-capes-colsucup-curso-2024-2025-12-01.xlsx" --dir .
+          mv "br-capes-colsucup-curso-2024-2025-12-01.xlsx" "capes_cursos_2024_fonte.xlsx"
+          ls -lh "capes_cursos_2024_fonte.xlsx"
+      - name: Extrair e filtrar dados de Geografia
         run: |
           set +e
-          python extrair_capes_2024.py > capes_processamento.log 2>&1
+          python -u extrair_capes_2024.py > capes_processamento.log 2>&1
           resultado=$?
           cat capes_processamento.log
           echo "STATUS_EXIT_CODE=$resultado" >> capes_processamento.log
           exit "$resultado"
-      - name: Registrar diagnóstico e dados filtrados
+      - name: Registrar diagnóstico e tabela filtrada
         if: always()
         run: |
           git config user.name "github-actions[bot]"
@@ -33,7 +36,7 @@ jobs:
           if [ -f capes_processamento.log ]; then git add capes_processamento.log; fi
           if [ -f capes_geografia_2024.csv ]; then git add capes_geografia_2024.csv; fi
           if ! git diff --cached --quiet; then
-            git commit -m "Registrar resultado da extração CAPES 2024"
+            git commit -m "Processar fonte local de CAPES 2024"
             git pull --rebase origin main
             git push
           fi
