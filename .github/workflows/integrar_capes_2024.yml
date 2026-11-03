@@ -1,0 +1,29 @@
+name: Integrar CAPES Geografia 2024
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "extrair_capes_2024.py"
+      - ".github/workflows/integrar_capes_2024.yml"
+jobs:
+  extrair:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install pandas openpyxl
+      - name: Extrair Geografia CAPES 2024
+        run: python extrair_capes_2024.py
+      - name: Versionar somente tabela filtrada
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add capes_geografia_2024.csv
+          if ! git diff --cached --quiet; then
+            git commit -m "Gerar indicadores CAPES Geografia 2024"
+            git push
+          fi
