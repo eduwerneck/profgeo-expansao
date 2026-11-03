@@ -112,7 +112,23 @@ resultados = st.session_state.get("resultado_expansao")
 if not Path("municipios_profgeo_2022.geojson").exists():
     st.warning("Mapa coroplético municipal ainda indisponível: falta gerar e publicar municipios_profgeo_2022.geojson a partir da malha IBGE 2022. A visualização abaixo é apenas provisória.")
 st.pydeck_chart(montar_mapa(sedes, resultados), use_container_width=True, key="mapa_expansao_" + str(st.session_state.get("versao_mapa", 0)))
-st.caption("Azul: sedes atuais | Marcadores vermelhos com contorno preto: candidaturas (passe o cursor para identificar) | Verde: até 100 km | Verde-claro: 100–200 km | Amarelo: 200–300 km | Vermelho: mais de 300 km.")
+st.markdown("**Prioridade territorial preliminar — distância ao polo PROFGEO mais próximo**")
+legenda = [
+    ("#26885E", "Muito baixa", "Até 100 km"),
+    ("#77B954", "Baixa", "Mais de 100 até 200 km"),
+    ("#F5AB40", "Moderada", "Mais de 200 até 300 km"),
+    ("#C5413E", "Alta", "Mais de 300 km"),
+]
+colunas_legenda = st.columns(4)
+for coluna, (cor, nivel, distancia) in zip(colunas_legenda, legenda):
+    with coluna:
+        st.markdown(
+            f'<div style="display:flex;align-items:center;gap:9px;padding:4px 0;">'
+            f'<span style="display:inline-block;width:20px;height:20px;flex-shrink:0;background:{cor};border:1px solid #888;border-radius:3px;"></span>'
+            f'<span style="font-size:0.85rem;"><b>{nivel}</b><br>{distancia}</span></div>',
+            unsafe_allow_html=True,
+        )
+st.caption("● Azul: polo atual | ● Vermelho com contorno preto: candidatura (passe o cursor). As cores representam somente a lacuna de proximidade; não determinam prioridade institucional, elegibilidade ou decisão da comissão.")
 
 with st.form("controles_expansao"):
     arq_candidatos = st.file_uploader("Carregar candidaturas (CSV)", type="csv")
