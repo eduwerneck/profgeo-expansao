@@ -1,0 +1,5 @@
+instituicao,campus,municipio,uf,lat,lon,tipo,regic_hierarquia,regic_regiao_influencia,observacoes
+UNESP,Presidente Prudente,Presidente Prudente,SP,-22.1225167,-51.3882528,,,,Candidatura piloto real; coordenadas municipais aproximadas; classificação A/B pendente de validação
+UFMT,Araguaia - Unidade II,Barra do Garças,MT,-15.89,-52.26,,,,Candidatura piloto real; coordenadas municipais aproximadas; classificação A/B pendente de validação
+Candidatura simulada A,Cenário demonstrativo,Santarém,PA,-2.43849,-54.69957,,,,SIMULAÇÃO: ponto fictício exclusivamente para apresentação à comissão; não representa instituição candidata
+Candidatura simulada B,Cenário demonstrativo,Montes Claros,MG,-16.7286,-43.8578,,,,SIMULAÇÃO: ponto fictício exclusivamente para apresentação à comissão; não representa instituição candidata
