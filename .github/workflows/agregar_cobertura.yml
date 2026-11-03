@@ -1,0 +1,28 @@
+name: Gerar camada de cobertura rapida
+on:
+  push:
+    paths:
+      - .github/workflows/agregar_cobertura.yml
+      - agregar_cobertura.py
+      - municipios_profgeo_2022_leve.geojson
+  workflow_dispatch:
+jobs:
+  gerar:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Instalar Shapely
+        run: pip install shapely
+      - name: Agregar classes e exportar indice municipal
+        run: python agregar_cobertura.py
+      - name: Publicar camadas compactas
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@users.noreply.github.com
+          git add cobertura_profgeo_agregada.geojson indice_municipios_profgeo.csv
+          git diff --cached --quiet || (git commit -m "Publicar cobertura compacta e indice REGIC" && git push)
