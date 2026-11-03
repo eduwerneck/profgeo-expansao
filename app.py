@@ -87,7 +87,6 @@ def montar_mapa(sedes, resultados):
         candidatos = resultados.copy()
         candidatos["identificacao"] = candidatos["instituicao"].astype(str) + " — " + candidatos["campus"].astype(str)
         candidatos["detalhe"] = candidatos["categoria"].astype(str) + " | " + candidatos["distancia_km"].astype(str) + " km do polo mais próximo"
-        candidatos["rotulo"] = candidatos["instituicao"].astype(str)
         # Marcadores em duas camadas: não dependem da fonte Unicode para exibir estrelas.
         layers.append(pdk.Layer("ScatterplotLayer", data=candidatos, get_position="[lon, lat]",
                                 get_radius=17000, radius_min_pixels=13, radius_max_pixels=19,
@@ -96,11 +95,6 @@ def montar_mapa(sedes, resultados):
         layers.append(pdk.Layer("ScatterplotLayer", data=candidatos, get_position="[lon, lat]",
                                 get_radius=9000, radius_min_pixels=7, radius_max_pixels=11,
                                 get_fill_color=[235,38,53,255], stroked=False, pickable=True))
-        layers.append(pdk.Layer("TextLayer", data=candidatos, get_position="[lon, lat]",
-                                get_text="rotulo", get_size=16, size_units="pixels",
-                                get_pixel_offset=[0,-24], get_color=[14,14,14,255],
-                                get_background_color=[255,255,255,220], background=True,
-                                get_text_anchor="middle", pickable=False))
         # Reenquadrar as duas candidaturas ao atualizar o mapa.
         latitude_centro = float(candidatos["lat"].mean())
         longitude_centro = float(candidatos["lon"].mean())
@@ -118,7 +112,7 @@ resultados = st.session_state.get("resultado_expansao")
 if not Path("municipios_profgeo_2022.geojson").exists():
     st.warning("Mapa coroplético municipal ainda indisponível: falta gerar e publicar municipios_profgeo_2022.geojson a partir da malha IBGE 2022. A visualização abaixo é apenas provisória.")
 st.pydeck_chart(montar_mapa(sedes, resultados), use_container_width=True, key="mapa_expansao_" + str(st.session_state.get("versao_mapa", 0)))
-st.caption("Azul: sedes atuais | Vermelho com contorno preto: candidaturas calculadas | Verde: até 100 km | Verde-claro: 100–200 km | Amarelo: 200–300 km | Vermelho: mais de 300 km. Sem o GeoJSON municipal processado, o mapa usa círculos de cobertura provisórios.")
+st.caption("Azul: sedes atuais | Marcadores vermelhos com contorno preto: candidaturas (passe o cursor para identificar) | Verde: até 100 km | Verde-claro: 100–200 km | Amarelo: 200–300 km | Vermelho: mais de 300 km.")
 
 with st.form("controles_expansao"):
     arq_candidatos = st.file_uploader("Carregar candidaturas (CSV)", type="csv")
