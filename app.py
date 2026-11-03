@@ -1,209 +1,110 @@
+"""PROFGEO Expansão — interface cartográfica simplificada."""
+import math
 import pandas as pd
 import pydeck as pdk
 import streamlit as st
 from engine import avaliar, distancia_km
 
-st.set_page_config(page_title="PROFGEO — laboratório territorial", layout="wide")
-st.title("PROFGEO | Laboratório de expansão territorial")
-st.caption("Protótipo exploratório. Não atribui habilitação, suplência nem decisão institucional.")
-st.info("A unidade espacial é o campus de oferta. As coordenadas de exemplo são pontos municipais aproximados, não coordenadas dos campi.")
-with st.expander("Como funciona a classificação"):
-    st.write("A = campus com pós-graduação em Geografia; B = campus com graduação em Geografia sem pós-graduação. A1/B1: >300 km; A2/B2: >200–300 km; A3/B3: >100–200 km; A4/B4: até 100 km.")
-    st.write("Distâncias em linha reta, sem estimativa de tempo de viagem. REGIC e acessibilidade amazônica ainda não são calculadas.")
-base = pd.read_csv("candidatos_exemplo.csv", keep_default_na=False)
-rede = pd.read_csv("rede_existente_18_polos.csv")
-rede["polo"] = rede["instituicao"] + " — " + rede["campus"]
-modelo_polos = rede[["polo", "municipio", "uf", "lat", "lon", "fonte"]].copy()
-st.subheader("Candidaturas-piloto — UNESP e UFMT Araguaia")
-st.caption("Teste espacial com coordenadas municipais provisórias. As classificações A/B dependem de evidência documental por campus.")
-pilotos = pd.read_csv("candidaturas_piloto.csv", dtype={"codigo_ibge": str}, keep_default_na=False)
-pilotos["tipo"] = pilotos["tipo"].replace("", "Pendente")
-pilotos["polo"] = ""
-for i, r in pilotos.iterrows():
-    dists = [(distancia_km(r["lat"], r["lon"], p["lat"], p["lon"]), p["polo"]) for _, p in modelo_polos.iterrows()]
-    dist, nome = min(dists)
-    pilotos.at[i, "distancia_km"] = round(dist, 1)
-    pilotos.at[i, "polo"] = nome
-    pilotos.at[i, "faixa_territorial"] = "1 (>300 km)" if dist > 300 else "2 (200–300 km)" if dist > 200 else "3 (100–200 km)" if dist > 100 else "4 (até 100 km)"
-    pilotos.at[i, "categoria"] = "Pendente: verificar A/B no INEP/CAPES"
-st.dataframe(pilotos[["instituicao", "campus", "municipio", "uf", "polo", "distancia_km", "faixa_territorial", "categoria", "status_georreferenciamento"]], use_container_width=True, hide_index=True)
-st.download_button("Baixar diagnóstico das candidaturas-piloto", pilotos.to_csv(index=False).encode("utf-8-sig"), "diagnostico_pilotos.csv", "text/csv")
-st.caption("As distâncias são calculadas em tempo de execução a partir dos pontos municipais de referência, não de coordenadas verificadas dos edifícios. As estrelas identificam candidaturas-piloto no mapa municipal quando o CSV IBGE é carregado.")
+st.set_page_config(page_title="Diagnóstico territorial da expansão do PROFGEO", layout="wide")
+st.title("Diagnóstico territorial da expansão do PROFGEO")
+st.caption("Rede atual, faixas de distância geodésica e candidaturas. Análise exploratória; não constitui decisão institucional.")
 
-st.subheader("Mapa integrado: cobertura territorial e candidaturas-piloto")
-st.caption("Pontos municipais aproximados; alguns campi ainda precisam de validação.")
-modo_mapa = st.radio("Visualização cartográfica", ["Faixas de cobertura territorial", "Mapa de calor", "Localização dos polos"], horizontal=True)
-raio = st.slider("Raio visual da concentração (pixels)", 15, 90, 40, 5) if modo_mapa == "Mapa de calor" else 40
-pontos = rede.dropna(subset=["lat", "lon"]).copy()
-pontos["lat"] = pd.to_numeric(pontos["lat"], errors="coerce")
-pontos["lon"] = pd.to_numeric(pontos["lon"], errors="coerce")
-pontos = pontos.dropna(subset=["lat", "lon"])
-pontos["peso"] = 1
-camadas = []
-if modo_mapa == "Faixas de cobertura territorial":
-    for km, cor in [(300,[216,110,66,38]),(200,[245,176,64,45]),(100,[55,156,106,60])]:
-        camadas.append(pdk.Layer("ScatterplotLayer", data=pontos, get_position="[lon, lat]", get_radius=km*1000, radius_units="meters", get_fill_color=cor, stroked=False, pickable=False))
-if modo_mapa == "Mapa de calor":
-    camadas.append(pdk.Layer("HeatmapLayer", data=pontos, get_position="[lon, lat]", get_weight="peso", radius_pixels=raio, intensity=1, threshold=0.03, pickable=False))
-camadas.append(pdk.Layer("ScatterplotLayer", data=pontos, get_position="[lon, lat]", get_radius=12000 if modo_mapa == "Localização dos polos" else 6000, radius_min_pixels=4, radius_max_pixels=10, get_fill_color=[23, 87, 149, 210] if modo_mapa == "Localização dos polos" else [255, 255, 255, 210], get_line_color=[12, 32, 55], line_width_min_pixels=1, stroked=True, pickable=True))
-estrelas = pilotos.copy()
-estrelas["simbolo"] = "★"
-camadas.append(pdk.Layer("TextLayer", data=estrelas, get_position="[lon, lat]", get_text="simbolo", get_size=35, size_units="pixels", get_color=[20,20,20,255], pickable=True))
-st.pydeck_chart(pdk.Deck(
-    map_style="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
-    initial_view_state=pdk.ViewState(latitude=-14.5, longitude=-52.5, zoom=3.25, pitch=0),
-    layers=camadas,
-    tooltip={"html": "<b>{instituicao}</b><br/>{campus}<br/>{municipio} — {uf}", "style": {"color": "white"}}
-))
-st.caption("★ = candidaturas UNESP e UFMT. Na opção Faixas de cobertura: verde até 100 km, amarelo até 200 km, laranja até 300 km dos polos; fora dos círculos, mais de 300 km. Sobreposições podem intensificar as cores. O calor representa apenas concentração de polos, não demanda educacional. Pontos municipais aproximados.")
-with st.expander("Consultar polos e ressalvas"):
-    st.dataframe(rede, use_container_width=True, hide_index=True)
-    st.download_button("Baixar rede de referência", rede.to_csv(index=False).encode("utf-8-sig"), "rede_existente_18_polos.csv", "text/csv")
-esq, dir = st.columns(2)
-with esq:
-    st.subheader("Candidaturas")
-    arquivo = st.file_uploader("Importar candidaturas CSV", type="csv", key="c")
-    candidatos = pd.read_csv(arquivo, keep_default_na=False) if arquivo else base
-    candidatos = st.data_editor(candidatos, num_rows="dynamic", hide_index=True, use_container_width=True)
-    st.download_button("Baixar modelo de candidaturas", base.to_csv(index=False).encode("utf-8-sig"), "candidatos_exemplo.csv", "text/csv")
-with dir:
-    st.subheader("Polos existentes — rede atual")
-    arquivo_polos = st.file_uploader("Importar polos existentes CSV", type="csv", key="p")
-    polos = pd.read_csv(arquivo_polos) if arquivo_polos else modelo_polos
-    polos = st.data_editor(polos, num_rows="dynamic", hide_index=True, use_container_width=True)
-    st.download_button("Baixar polos de referência", modelo_polos.to_csv(index=False).encode("utf-8-sig"), "polos_modelo.csv", "text/csv")
-if candidatos["tipo"].astype(str).str.strip().eq("").any():
-    st.warning("Informe o tipo A/B dos candidatos para obter a categoria territorial.")
-if st.button("Calcular prioridades territoriais", type="primary"):
-    try:
-        st.session_state["resultado"] = avaliar(candidatos, polos)
-    except Exception as exc:
-        st.error(str(exc))
-if "resultado" in st.session_state:
-    resultado = st.session_state["resultado"]
-    st.subheader("Resultados calculados")
-    st.dataframe(resultado, use_container_width=True, hide_index=True)
-    st.download_button("Exportar resultado CSV", resultado.to_csv(index=False).encode("utf-8-sig"), "resultados_profgeo.csv", "text/csv")
-    if not resultado.empty:
-        st.map(resultado[["lat", "lon"]].dropna())
+@st.cache_data
+def ler_sedes():
+    df = pd.read_csv("rede_existente_18_polos.csv")
+    df["polo"] = df["instituicao"].astype(str) + " — " + df["campus"].astype(str)
+    return df
 
-st.divider()
-st.subheader("Diagnóstico territorial da expansão do PROFGEO")
-camada_territorial = st.radio("Camada temática", ["Distância à rede", "Oportunidade territorial preliminar"], horizontal=True, key="camada_territorial")
-st.caption("Análise de distância geodésica entre pontos representativos municipais do IBGE 2022 e os 18 polos. Não representa acessibilidade real.")
-municipios_arquivo = st.file_uploader("Carregar pontos municipais IBGE 2022 (CSV)", type="csv", key="municipios")
-if municipios_arquivo is None:
-    st.info("Para habilitar o mapa nacional, carregue o arquivo municipios_ibge_2022_pontos.csv disponibilizado com o projeto. O cálculo é executado no navegador após o envio do arquivo.")
-else:
-    try:
-        import numpy as np
-        municipios = pd.read_csv(municipios_arquivo, dtype={"codigo_ibge": str})
-        exigidas = {"codigo_ibge", "municipio", "uf", "lat", "lon"}
-        if not exigidas.issubset(municipios.columns):
-            raise ValueError("CSV municipal deve conter: codigo_ibge, municipio, uf, lat, lon.")
-        if municipios["codigo_ibge"].duplicated().any():
-            raise ValueError("Há códigos IBGE duplicados no arquivo.")
-        municipios["lat"] = pd.to_numeric(municipios["lat"], errors="coerce")
-        municipios["lon"] = pd.to_numeric(municipios["lon"], errors="coerce")
-        if municipios[["lat", "lon"]].isna().any().any():
-            raise ValueError("Há coordenadas municipais ausentes ou inválidas.")
-        pl = np.radians(rede[["lat", "lon"]].to_numpy(dtype=float))
-        ml = np.radians(municipios[["lat", "lon"]].to_numpy(dtype=float))
-        dlat = ml[:, None, 0] - pl[None, :, 0]
-        dlon = ml[:, None, 1] - pl[None, :, 1]
-        h = np.sin(dlat / 2) ** 2 + np.cos(ml[:, None, 0]) * np.cos(pl[None, :, 0]) * np.sin(dlon / 2) ** 2
-        dist = 6371.0088 * 2 * np.arcsin(np.sqrt(np.clip(h, 0, 1)))
-        indice = np.argmin(dist, axis=1)
-        municipios["distancia_km"] = np.round(dist[np.arange(len(municipios)), indice], 1)
-        municipios["polo_proximo"] = rede.iloc[indice]["instituicao"].to_numpy()
-        municipios["faixa"] = pd.cut(municipios["distancia_km"], bins=[-0.01, 100, 200, 300, np.inf], labels=["Até 100 km", "100–200 km", "200–300 km", "Mais de 300 km"], include_lowest=True)
-        paleta = {"Até 100 km": [38, 136, 94, 180], "100–200 km": [119, 185, 84, 180], "200–300 km": [245, 171, 64, 185], "Mais de 300 km": [197, 65, 62, 195]}
-        municipios["cor"] = municipios["faixa"].astype(str).map(paleta)
-        oportunidades = {
-            "Até 100 km": "Menor lacuna de proximidade",
-            "100–200 km": "Lacuna moderada de proximidade",
-            "200–300 km": "Lacuna elevada de proximidade",
-            "Mais de 300 km": "Lacuna muito elevada de proximidade",
-        }
-        municipios["oportunidade_preliminar"] = municipios["faixa"].astype(str).map(oportunidades)
-        if camada_territorial == "Oportunidade territorial preliminar":
-            st.info("Camada exploratória baseada SOMENTE na distância à rede. Uma lacuna de proximidade maior sugere investigar a expansão, mas não demonstra potencial institucional, demanda, elegibilidade ou acessibilidade.")
-            st.markdown("**Legenda — oportunidade de investigação por lacuna de proximidade**")
+@st.cache_data
+def ler_pilotos():
+    return pd.read_csv("candidaturas_piloto.csv", keep_default_na=False)
+
+def normalizar_sedes(df):
+    df = df.copy()
+    if "polo" not in df.columns:
+        if {"instituicao", "campus"}.issubset(df.columns):
+            df["polo"] = df["instituicao"].astype(str) + " — " + df["campus"].astype(str)
         else:
-            st.markdown("**Legenda — distância geodésica ao polo PROFGEO mais próximo (km)**")
-        legenda = [
-            ("#26885E", "Até 100 km"),
-            ("#77B954", "Mais de 100 até 200 km"),
-            ("#F5AB40", "Mais de 200 até 300 km"),
-            ("#C5413E", "Mais de 300 km"),
-        ]
-        if camada_territorial == "Oportunidade territorial preliminar":
-            legenda = [(cor, oportunidades[faixa]) for (cor, _), faixa in zip(legenda, ["Até 100 km", "100–200 km", "200–300 km", "Mais de 300 km"])]
-        cols_legenda = st.columns(4)
-        for coluna, (cor, rotulo) in zip(cols_legenda, legenda):
-            with coluna:
-                st.markdown(
-                    f'<div style="display:flex;align-items:center;gap:8px;margin:3px 0 12px 0;">'
-                    f'<span style="display:inline-block;flex-shrink:0;width:24px;height:17px;background:{cor};border:1px solid #888;border-radius:3px;"></span>'
-                    f'<span style="font-size:0.85rem;">{rotulo}</span></div>',
-                    unsafe_allow_html=True,
-                )
-        st.pydeck_chart(pdk.Deck(
-            map_style="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
-            initial_view_state=pdk.ViewState(latitude=-14.5, longitude=-52.5, zoom=3.2),
-            layers=[pdk.Layer("ScatterplotLayer", data=municipios, get_position="[lon, lat]", get_fill_color="cor", get_radius=7500, radius_min_pixels=2, radius_max_pixels=8, pickable=True), pdk.Layer("TextLayer", data=pilotos.assign(simbolo="★", identificacao=pilotos["instituicao"] + " — " + pilotos["campus"]), get_position="[lon, lat]", get_text="simbolo", get_size=28, size_units="pixels", get_color=[20, 20, 20, 255], get_text_anchor="middle", get_alignment_baseline="center", pickable=True)],
-            tooltip={"html": "<b>{municipio} ({uf})</b><br/>Polo mais próximo: {polo_proximo}<br/>Distância: {distancia_km} km<br/>{faixa}<br/>{oportunidade_preliminar}"}
-        ))
-        resumo = municipios.groupby("faixa", observed=False).size().rename("municípios").reset_index()
-        st.dataframe(resumo, use_container_width=True, hide_index=True)
-        st.download_button("Baixar diagnóstico territorial municipal", municipios.drop(columns=["cor"]).to_csv(index=False).encode("utf-8-sig"), "profgeo_distancias_municipios_2022.csv", "text/csv")
-        st.caption("Mapa pontual, não coroplético: cada círculo corresponde a um ponto municipal, sem preencher o polígono do município. Distância municipal não é classificação institucional A1–B4.")
+            raise ValueError("As sedes precisam da coluna 'polo' ou das colunas 'instituicao' e 'campus'.")
+    for col in ("lat", "lon"):
+        if col not in df.columns:
+            raise ValueError(f"Coluna obrigatória ausente nas sedes: {col}")
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+    if df[["lat", "lon"]].isna().any().any() or df.empty:
+        raise ValueError("Todas as sedes precisam de coordenadas válidas.")
+    return df
+
+def normalizar_candidatos(df):
+    df = df.copy()
+    for col in ("instituicao", "campus", "municipio", "uf", "lat", "lon"):
+        if col not in df.columns:
+            raise ValueError(f"Coluna obrigatória ausente nas candidaturas: {col}")
+    for col in ("lat", "lon"):
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+    if df[["lat", "lon"]].isna().any().any():
+        raise ValueError("Todas as candidaturas precisam de latitude e longitude válidas.")
+    if "tipo" not in df.columns:
+        df["tipo"] = ""
+    return df
+
+def aneis(lat, lon, raio_km, passos=48):
+    a = math.radians(float(lat))
+    o = math.radians(float(lon))
+    delta = raio_km / 6371.0088
+    pts = []
+    for k in range(passos):
+        rumo = 2 * math.pi * k / passos
+        phi = math.asin(math.sin(a)*math.cos(delta)+math.cos(a)*math.sin(delta)*math.cos(rumo))
+        lam = o + math.atan2(math.sin(rumo)*math.sin(delta)*math.cos(a), math.cos(delta)-math.sin(a)*math.sin(phi))
+        pts.append([math.degrees(lam), math.degrees(phi)])
+    return pts
+
+def montar_mapa(sedes, resultados):
+    layers = []
+    # Faixas concêntricas: representação visual aproximada da distância à rede.
+    for km, cor in ((300,[221,120,70,38]), (200,[245,177,73,48]), (100,[51,157,111,64])):
+        poligonos = [{"polygon": aneis(r.lat, r.lon, km)} for r in sedes.itertuples()]
+        layers.append(pdk.Layer("PolygonLayer", data=poligonos, get_polygon="polygon", get_fill_color=cor, stroked=False, pickable=False))
+    sedes = sedes.copy()
+    sedes["identificacao"] = sedes["polo"]
+    sedes["detalhe"] = "Polo PROFGEO existente"
+    layers.append(pdk.Layer("ScatterplotLayer", data=sedes, get_position="[lon, lat]", get_radius=6500, radius_min_pixels=4, radius_max_pixels=9, get_fill_color=[24,75,138,255], get_line_color=[255,255,255,255], line_width_min_pixels=1, stroked=True, pickable=True))
+    if resultados is not None and not resultados.empty:
+        candidatos = resultados.copy()
+        candidatos["identificacao"] = candidatos["instituicao"].astype(str) + " — " + candidatos["campus"].astype(str)
+        candidatos["detalhe"] = candidatos["categoria"].astype(str) + " | " + candidatos["distancia_km"].astype(str) + " km do polo mais próximo"
+        candidatos["simbolo"] = "★"
+        layers.append(pdk.Layer("TextLayer", data=candidatos, get_position="[lon, lat]", get_text="simbolo", get_size=38, size_units="pixels", get_color=[18,18,18,255], get_text_anchor="middle", get_alignment_baseline="center", pickable=True))
+    return pdk.Deck(map_style="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json", initial_view_state=pdk.ViewState(latitude=-14.5,longitude=-52.5,zoom=3.5,pitch=0), layers=layers, tooltip={"html":"<b>{identificacao}</b><br/>{detalhe}","style":{"color":"white"}})
+
+sedes_padrao = normalizar_sedes(ler_sedes())
+sedes = st.session_state.get("sedes_ativas", sedes_padrao)
+resultados = st.session_state.get("resultado_expansao")
+st.pydeck_chart(montar_mapa(sedes, resultados), use_container_width=True)
+st.caption("Azul: sedes atuais | ★: candidaturas calculadas | Verde: até 100 km | Amarelo: até 200 km | Laranja: até 300 km | Fora das áreas: acima de 300 km. Os polígonos são círculos geodésicos aproximados, não um mapa coroplético municipal. Sobreposições alteram a intensidade visual.")
+
+with st.form("controles_expansao"):
+    a, b = st.columns(2)
+    with a:
+        arq_candidatos = st.file_uploader("Carregar candidaturas (CSV)", type="csv")
+    with b:
+        arq_sedes = st.file_uploader("Carregar sedes (CSV)", type="csv")
+    calcular = st.form_submit_button("Calcular expansão", type="primary", use_container_width=True)
+
+if calcular:
+    try:
+        sedes_novas = normalizar_sedes(pd.read_csv(arq_sedes) if arq_sedes else sedes_padrao)
+        candidatos = normalizar_candidatos(pd.read_csv(arq_candidatos, keep_default_na=False) if arq_candidatos else ler_pilotos())
+        resultado = avaliar(candidatos, sedes_novas)
+        st.session_state["sedes_ativas"] = sedes_novas
+        st.session_state["resultado_expansao"] = resultado
+        st.rerun()
     except Exception as exc:
-        st.error(f"Não foi possível calcular as distâncias: {exc}")
+        st.error(f"Não foi possível calcular: {exc}")
 
-st.divider()
-st.subheader("Camadas educacionais — INEP e CAPES")
-st.caption("Etapa de integração: aceita tabelas oficiais já extraídas e harmonizadas. Não atribui automaticamente graduação, pós-graduação ou elegibilidade a um campus.")
-with st.expander("Importar e validar registros de graduação e pós-graduação", expanded=False):
-    from camadas_educacionais import CAMPOS, validar_camadas, resumo
-    modelo = pd.DataFrame(columns=CAMPOS)
-    st.download_button("Baixar esquema CSV para integração", modelo.to_csv(index=False).encode("utf-8-sig"), "esquema_inep_capes.csv", "text/csv")
-    arquivo_educacao = st.file_uploader("CSV harmonizado do INEP e/ou CAPES", type="csv", key="educacao")
-    if arquivo_educacao is not None:
-        try:
-            registros = validar_camadas(pd.read_csv(arquivo_educacao, dtype={"codigo_ibge": str, "identificador_origem": str}))
-            st.success(f"{len(registros)} registros importados para análise; a validação institucional continua necessária.")
-            st.dataframe(resumo(registros), hide_index=True, use_container_width=True)
-            st.dataframe(registros, hide_index=True, use_container_width=True)
-            pontos_educacao = registros.dropna(subset=["lat", "lon"])
-            if not pontos_educacao.empty:
-                st.map(pontos_educacao[["lat", "lon"]])
-            else:
-                st.info("Nenhum registro possui coordenadas validadas; o mapa não será gerado.")
-        except Exception as exc:
-            st.error(f"Erro na validação dos registros: {exc}")
-
-st.divider()
-st.subheader("Subsídio técnico e deliberação da comissão")
-st.caption("O diagnóstico métrico orienta a análise, mas não constitui decisão de credenciamento ou expansão.")
-st.markdown("**Procedimento em duas etapas:** (1) aferição técnica com dados e critérios rastreáveis; (2) avaliação estratégica e deliberação fundamentada pela comissão.")
-with st.expander("Registro de avaliação da comissão (exportação local)", expanded=False):
-    st.info("O registro é independente da classificação métrica. Uma divergência não altera os dados nem a classificação calculada.")
-    instituicao_avaliada = st.text_input("Instituição/campus em avaliação", key="comissao_instituicao")
-    decisao_comissao = st.selectbox("Encaminhamento proposto", ["Pendente de deliberação", "Solicitar informações adicionais", "Encaminhar para avaliação estratégica", "Parecer favorável", "Parecer desfavorável"], key="comissao_decisao")
-    justificativa_comissao = st.text_area("Justificativa fundamentada (contexto territorial e institucional)", key="comissao_justificativa")
-    referencia_comissao = st.text_input("Referência documental ou ata (opcional)", key="comissao_referencia")
-    registro_comissao = pd.DataFrame([{
-        "instituicao_campus": instituicao_avaliada,
-        "encaminhamento": decisao_comissao,
-        "justificativa": justificativa_comissao,
-        "referencia": referencia_comissao,
-        "carater": "Registro preliminar; não equivale a decisão oficial"
-    }])
-    st.download_button("Exportar registro da comissão (CSV)", registro_comissao.to_csv(index=False).encode("utf-8-sig"), "registro_comissao_profgeo.csv", "text/csv", disabled=not (instituicao_avaliada.strip() and justificativa_comissao.strip()))
-st.caption("Indicadores e deliberações devem ser arquivados separadamente. Pesos e índices compostos dependerão de protocolo aprovado e análise de sensibilidade.")
-
-st.divider()
-st.subheader("UEL × IFPR — contexto histórico")
-st.write("Conforme informado pela comissão: houve empate, e o IFPR em Jaguariaíva foi selecionado pelo critério de interiorização. O cálculo territorial não reproduz automaticamente essa decisão.")
-st.caption("Para validação retrospectiva: informar os polos existentes à época, a condição A/B dos campi e os dados oficiais da REGIC. Não usar polos implantados posteriormente.")
+if resultados is not None and not resultados.empty:
+    st.download_button("Baixar resultados (CSV)", resultados.to_csv(index=False).encode("utf-8-sig"), "diagnostico_expansao_profgeo.csv", mime="text/csv", use_container_width=True)
+    st.caption("Resultado calculado. Tipo A/B não comprovado permanece pendente; distância não equivale a acessibilidade ou prioridade institucional.")
+else:
+    st.button("Baixar resultados (CSV)", disabled=True, use_container_width=True)
+    st.caption("Carregue as candidaturas ou use os dois casos-piloto incluídos e clique em Calcular expansão.")
