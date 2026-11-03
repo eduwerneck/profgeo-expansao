@@ -78,25 +78,19 @@ def montar_mapa(sedes, resultados):
     return pdk.Deck(map_style="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json", initial_view_state=pdk.ViewState(latitude=-14.5,longitude=-52.5,zoom=3.5,pitch=0), layers=layers, tooltip={"html":"<b>{identificacao}</b><br/>{detalhe}","style":{"color":"white"}})
 
 sedes_padrao = normalizar_sedes(ler_sedes())
-sedes = st.session_state.get("sedes_ativas", sedes_padrao)
+sedes = sedes_padrao
 resultados = st.session_state.get("resultado_expansao")
 st.pydeck_chart(montar_mapa(sedes, resultados), use_container_width=True)
 st.caption("Azul: sedes atuais | ★: candidaturas calculadas | Verde: até 100 km | Amarelo: até 200 km | Laranja: até 300 km | Fora das áreas: acima de 300 km. Os polígonos são círculos geodésicos aproximados, não um mapa coroplético municipal. Sobreposições alteram a intensidade visual.")
 
 with st.form("controles_expansao"):
-    a, b = st.columns(2)
-    with a:
-        arq_candidatos = st.file_uploader("Carregar candidaturas (CSV)", type="csv")
-    with b:
-        arq_sedes = st.file_uploader("Carregar sedes (CSV)", type="csv")
+    arq_candidatos = st.file_uploader("Carregar candidaturas (CSV)", type="csv")
     calcular = st.form_submit_button("Calcular expansão", type="primary", use_container_width=True)
 
 if calcular:
     try:
-        sedes_novas = normalizar_sedes(pd.read_csv(arq_sedes) if arq_sedes else sedes_padrao)
         candidatos = normalizar_candidatos(pd.read_csv(arq_candidatos, keep_default_na=False) if arq_candidatos else ler_pilotos())
-        resultado = avaliar(candidatos, sedes_novas)
-        st.session_state["sedes_ativas"] = sedes_novas
+        resultado = avaliar(candidatos, sedes_padrao)
         st.session_state["resultado_expansao"] = resultado
         st.rerun()
     except Exception as exc:
@@ -107,4 +101,4 @@ if resultados is not None and not resultados.empty:
     st.caption("Resultado calculado. Tipo A/B não comprovado permanece pendente; distância não equivale a acessibilidade ou prioridade institucional.")
 else:
     st.button("Baixar resultados (CSV)", disabled=True, use_container_width=True)
-    st.caption("Carregue as candidaturas ou use os dois casos-piloto incluídos e clique em Calcular expansão.")
+    st.caption("Carregue candidaturas ou utilize os dois casos-piloto incluídos; clique em Calcular expansão.")
