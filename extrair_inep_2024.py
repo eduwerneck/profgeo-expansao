@@ -30,24 +30,37 @@ def escolher_coluna(colunas,*possibilidades):
     return None
 
 def baixar():
-    if ARQ.exists() and ARQ.stat().st_size>1000000:
+    """Usa certificados válidos; preserva ZIP local fornecido pelo usuário."""
+    import requests
+    import certifi
+    if ARQ.exists() and ARQ.stat().st_size > 1000000:
+        if not zipfile.is_zipfile(ARQ):
+            raise ValueError("O ZIP local do INEP está corrompido")
+        print('Fonte INEP local validada; download dispensado.', flush=True)
         return
-    for tentativa in range(1,4):
+    url = os.environ.get("INEP_2024_URL", URL)
+    erros = []
+    for tentativa in range(1, 5):
         try:
-            req=urllib.request.Request(URL,headers={"User-Agent":"Mozilla/5.0 (PROFGEO academic audit)"})
-            with urllib.request.urlopen(req,timeout=240) as resp, ARQ.open("wb") as arq:
-                while True:
-                    bloco=resp.read(1024*1024)
-                    if not bloco:break
-                    arq.write(bloco)
-            if not zipfile.is_zipfile(ARQ):
-                raise ValueError("Arquivo de origem não é ZIP válido")
+            with requests.get(url, stream=True, timeout=(25, 150),
+                              headers={"User-Agent": "Mozilla/5.0",
+                                       "Accept-Encoding": "identity"},
+                              verify=certifi.where()) as resposta:
+                resposta.raise_for_status()
+                with ARQ.open("wb") as arq:
+                    for bloco in resposta.iter_content(chunk_size=1024*1024):
+                        if bloco:
+                            arq.write(bloco)
+            if ARQ.stat().st_size < 1000000 or not zipfile.is_zipfile(ARQ):
+                raise ValueError("ZIP INEP invalido ou incompleto")
+            print(f'INEP: fonte oficial recebida ({ARQ.stat().st_size} bytes).', flush=True)
             return
-        except Exception as e:
+        except Exception as exc:
+            erros.append(f'{tentativa}: {type(exc).__name__}: {exc}')
             ARQ.unlink(missing_ok=True)
-            print(f"Tentativa {tentativa} falhou: {e}",flush=True)
-            if tentativa==3:raise
-            time.sleep(10*tentativa)
+            print('Falha download INEP: ' + erros[-1], flush=True)
+            time.sleep(min(3*tentativa,12))
+    raise RuntimeError("INEP indisponivel com SSL verificado: " + " | ".join(erros))
 
 def analisar_csv(z, nome):
     print("Lendo CSV:",nome,flush=True)
