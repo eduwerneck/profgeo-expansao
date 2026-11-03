@@ -51,9 +51,8 @@ def baixar():
 
 def analisar_csv(z, nome):
     print("Lendo CSV:",nome,flush=True)
-    for encoding in ("utf-8-sig","latin1"):
-        for separador in ("; ", ";", ","):
-            if separador=="; ":continue
+    for encoding in ("latin1","utf-8-sig"):
+        for separador in (";", ","):
             try:
                 with z.open(nome) as arq:
                     import io
