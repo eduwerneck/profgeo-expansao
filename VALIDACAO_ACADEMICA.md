@@ -35,3 +35,8 @@ O ranking exploratório por distância usa faixas territoriais; quando A/B for v
 
 ## Estado desta integração
 Os scripts e a interface de evidência acadêmica foram adicionados ao repositório. **A inclusão de registros acadêmicos depende de os arquivos derivados serem efetivamente produzidos e auditados pelos workflows.** A ausência desses arquivos não autoriza inferir ausência de cursos.
+
+
+## Fonte adicional identificada para linhas de pesquisa
+A CAPES também publica a base **Projetos dos Programas de Pós-Graduação Stricto Sensu 2021–2024** (ano-base 2024). Seus metadados incluem `NM_LINHA_PESQUISA`, `CD_PROGRAMA_IES`, `NM_AREA_CONCENTRACAO` e `NM_PROJETO`. Essa fonte permite localizar **linhas declaradas associadas a projetos**, mas não prova, isoladamente, que todas as linhas do programa estejam representadas por projetos ativos. A validação da presença de ensino de Geografia deve ser acompanhada de inspeção manual da ficha do programa na Plataforma Sucupira.
+Fonte: https://dadosabertos.capes.gov.br/dataset/1e577e61-729f-473a-8dd6-4918401c18a9
