@@ -82,21 +82,43 @@ def montar_mapa(sedes, resultados):
     sedes["identificacao"] = sedes["polo"]
     sedes["detalhe"] = "Polo PROFGEO existente"
     layers.append(pdk.Layer("ScatterplotLayer", data=sedes, get_position="[lon, lat]", get_radius=6500, radius_min_pixels=4, radius_max_pixels=9, get_fill_color=[24,75,138,255], get_line_color=[255,255,255,255], line_width_min_pixels=1, stroked=True, pickable=True))
+    latitude_centro, longitude_centro, zoom = -14.5, -52.5, 3.5
     if resultados is not None and not resultados.empty:
         candidatos = resultados.copy()
         candidatos["identificacao"] = candidatos["instituicao"].astype(str) + " — " + candidatos["campus"].astype(str)
         candidatos["detalhe"] = candidatos["categoria"].astype(str) + " | " + candidatos["distancia_km"].astype(str) + " km do polo mais próximo"
-        candidatos["simbolo"] = "★"
-        layers.append(pdk.Layer("TextLayer", data=candidatos, get_position="[lon, lat]", get_text="simbolo", get_size=38, size_units="pixels", get_color=[18,18,18,255], get_text_anchor="middle", get_alignment_baseline="center", pickable=True))
-    return pdk.Deck(map_style="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json", initial_view_state=pdk.ViewState(latitude=-14.5,longitude=-52.5,zoom=3.5,pitch=0), layers=layers, tooltip={"html":"<b>{identificacao}</b><br/>{detalhe}","style":{"color":"white"}})
+        candidatos["rotulo"] = candidatos["instituicao"].astype(str)
+        # Marcadores em duas camadas: não dependem da fonte Unicode para exibir estrelas.
+        layers.append(pdk.Layer("ScatterplotLayer", data=candidatos, get_position="[lon, lat]",
+                                get_radius=17000, radius_min_pixels=13, radius_max_pixels=19,
+                                get_fill_color=[255,255,255,255], get_line_color=[20,20,20,255],
+                                line_width_min_pixels=3, stroked=True, pickable=True))
+        layers.append(pdk.Layer("ScatterplotLayer", data=candidatos, get_position="[lon, lat]",
+                                get_radius=9000, radius_min_pixels=7, radius_max_pixels=11,
+                                get_fill_color=[235,38,53,255], stroked=False, pickable=True))
+        layers.append(pdk.Layer("TextLayer", data=candidatos, get_position="[lon, lat]",
+                                get_text="rotulo", get_size=16, size_units="pixels",
+                                get_pixel_offset=[0,-24], get_color=[14,14,14,255],
+                                get_background_color=[255,255,255,220], background=True,
+                                get_text_anchor="middle", pickable=False))
+        # Reenquadrar as duas candidaturas ao atualizar o mapa.
+        latitude_centro = float(candidatos["lat"].mean())
+        longitude_centro = float(candidatos["lon"].mean())
+        amplitude = max(float(candidatos["lat"].max()-candidatos["lat"].min()),
+                        float(candidatos["lon"].max()-candidatos["lon"].min()))
+        zoom = 5.0 if amplitude < 3 else 4.4 if amplitude < 8 else 3.6
+    return pdk.Deck(map_style="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
+                    initial_view_state=pdk.ViewState(latitude=latitude_centro, longitude=longitude_centro, zoom=zoom, pitch=0),
+                    layers=layers,
+                    tooltip={"html":"<b>{identificacao}</b><br/>{detalhe}","style":{"color":"white"}})
 
 sedes_padrao = normalizar_sedes(ler_sedes())
 sedes = sedes_padrao
 resultados = st.session_state.get("resultado_expansao")
 if not Path("municipios_profgeo_2022.geojson").exists():
     st.warning("Mapa coroplético municipal ainda indisponível: falta gerar e publicar municipios_profgeo_2022.geojson a partir da malha IBGE 2022. A visualização abaixo é apenas provisória.")
-st.pydeck_chart(montar_mapa(sedes, resultados), use_container_width=True)
-st.caption("Azul: sedes atuais | ★: candidaturas calculadas | Verde: até 100 km | Verde-claro: 100–200 km | Amarelo: 200–300 km | Vermelho: mais de 300 km. Sem o GeoJSON municipal processado, o mapa usa círculos de cobertura provisórios.")
+st.pydeck_chart(montar_mapa(sedes, resultados), use_container_width=True, key="mapa_expansao_" + str(st.session_state.get("versao_mapa", 0)))
+st.caption("Azul: sedes atuais | Vermelho com contorno preto: candidaturas calculadas | Verde: até 100 km | Verde-claro: 100–200 km | Amarelo: 200–300 km | Vermelho: mais de 300 km. Sem o GeoJSON municipal processado, o mapa usa círculos de cobertura provisórios.")
 
 with st.form("controles_expansao"):
     arq_candidatos = st.file_uploader("Carregar candidaturas (CSV)", type="csv")
@@ -107,6 +129,7 @@ if calcular:
         candidatos = normalizar_candidatos(pd.read_csv(arq_candidatos, keep_default_na=False) if arq_candidatos else ler_pilotos())
         resultado = avaliar(candidatos, sedes_padrao)
         st.session_state["resultado_expansao"] = resultado
+        st.session_state["versao_mapa"] = st.session_state.get("versao_mapa", 0) + 1
         st.rerun()
     except Exception as exc:
         st.error(f"Não foi possível calcular: {exc}")
