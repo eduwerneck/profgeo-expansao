@@ -204,27 +204,49 @@ if calcular:
         st.error(f"Não foi possível calcular: {exc}")
 
 if resultados is not None and not resultados.empty:
-    if "status_regic" in resultados.columns:
-        st.caption("REGIC das candidaturas: " + " | ".join(resultados["status_regic"].astype(str).unique()))
-    if "rank_cenario_regic" in resultados.columns:
-        with st.expander("Comparar rankings: distância × REGIC", expanded=False):
-            if resultados["rank_cenario_regic"].isna().any():
-                st.warning("Não foi possível calcular o cenário REGIC: faltam hierarquias verificadas. As prioridades não são inferidas.")
-            else:
-                st.caption("Simulação: primeiro a faixa territorial (>300, 200–300, 100–200 ou até 100 km); depois o nível REGIC; depois a distância exata. Não é uma classificação institucional.")
-                colunas = ["instituicao", "municipio", "distancia_km", "hierarquia_regic",
-                           "rank_distancia", "rank_cenario_regic", "variacao_posicoes"]
-                comparacao = resultados[colunas].sort_values("rank_cenario_regic")
-                st.dataframe(comparacao.rename(columns={
-                    "instituicao": "Instituição", "municipio": "Município",
-                    "distancia_km": "Distância (km)", "hierarquia_regic": "REGIC 2018",
-                    "rank_distancia": "Posição por distância",
-                    "rank_cenario_regic": "Posição com REGIC",
-                    "variacao_posicoes": "Mudança (posições)"
-                }), hide_index=True, use_container_width=True)
-                st.caption("Mudança positiva indica subida no ranking. A hierarquia REGIC atua apenas dentro da mesma faixa de distância.")
-    st.download_button("Baixar resultados (CSV)", resultados.to_csv(index=False).encode("utf-8-sig"), "diagnostico_expansao_profgeo.csv", mime="text/csv", use_container_width=True)
-    st.caption("Resultado calculado. REGIC 2018 é dimensão descritiva independente, sem peso na classificação por distância. Tipo A/B permanece pendente quando não comprovado.")
+    st.subheader("Ranking preliminar das candidaturas")
+    regic_disponivel = (
+        "rank_cenario_regic" in resultados.columns
+        and resultados["rank_cenario_regic"].notna().all()
+    )
+    tabela = resultados.copy()
+    if regic_disponivel:
+        tabela = tabela.sort_values("rank_cenario_regic", kind="stable")
+        tabela["Posição"] = tabela["rank_cenario_regic"].astype(int)
+        st.caption("Cenário exploratório: primeiro a faixa de distância ao polo mais próximo; dentro da mesma faixa, a hierarquia REGIC 2018; depois, a distância exata. Não é uma decisão institucional.")
+    else:
+        tabela = tabela.sort_values("distancia_km", ascending=False, kind="stable")
+        tabela["Posição"] = range(1, len(tabela) + 1)
+        st.warning("Ranking provisório apenas por distância: há registros REGIC ausentes ou ainda não validados.")
+    tabela["Instituição / campus"] = tabela["instituicao"].astype(str) + " — " + tabela["campus"].astype(str)
+    tabela["Município / UF"] = tabela["municipio"].astype(str) + " / " + tabela["uf"].astype(str)
+    tabela["Prioridade territorial"] = tabela["distancia_km"].apply(
+        lambda d: "Alta" if d > 300 else "Moderada" if d > 200 else "Baixa" if d > 100 else "Muito baixa"
+    )
+    tabela["REGIC 2018"] = tabela["hierarquia_regic"] if "hierarquia_regic" in tabela else "Não verificada"
+    tabela["Mudança com REGIC"] = (
+        tabela["variacao_posicoes"].apply(lambda n: f"+{int(n)}" if n > 0 else str(int(n)))
+        if regic_disponivel else "—"
+    )
+    colunas = ["Posição", "Instituição / campus", "Município / UF",
+               "distancia_km", "REGIC 2018", "Prioridade territorial", "Mudança com REGIC"]
+    def colorir_prioridade(valor):
+        cores = {"Alta": "#F5D5D2", "Moderada": "#FCE8BA", "Baixa": "#E3F2D4", "Muito baixa": "#CBE8D8"}
+        return "background-color: " + cores.get(valor, "transparent") + ";color:#17212b"
+    quadro = tabela[colunas].rename(columns={"distancia_km": "Distância (km)"})
+    st.dataframe(
+        quadro.style.map(colorir_prioridade, subset=["Prioridade territorial"]),
+        hide_index=True, use_container_width=True,
+        column_config={
+            "Posição": st.column_config.NumberColumn("Ranking", format="%dº", width="small"),
+            "Distância (km)": st.column_config.NumberColumn("Distância (km)", format="%.1f", width="small"),
+            "Mudança com REGIC": st.column_config.TextColumn("Variação", width="small"),
+        },
+    )
+    st.caption("As cores representam exclusivamente a lacuna de proximidade à rede. A REGIC reorganiza candidaturas dentro da mesma faixa; cursos, matrículas e análise da comissão ainda não entram neste ranking.")
+    with st.expander("Exportação e dados técnicos", expanded=False):
+        st.download_button("Baixar resultados completos (CSV)",
+                           resultados.to_csv(index=False).encode("utf-8-sig"),
+                           "diagnostico_expansao_profgeo.csv", mime="text/csv")
 else:
-    st.button("Baixar resultados (CSV)", disabled=True, use_container_width=True)
-    st.caption("Carregue candidaturas ou utilize os dois casos-piloto incluídos; clique em Calcular expansão.")
+    st.caption("Carregue candidaturas ou utilize os dois casos-piloto incluídos; clique em Calcular expansão para exibir o ranking.")
