@@ -140,6 +140,28 @@ else:
         st.error(f"Não foi possível calcular as distâncias: {exc}")
 
 st.divider()
+st.subheader("Camadas educacionais — INEP e CAPES")
+st.caption("Etapa de integração: aceita tabelas oficiais já extraídas e harmonizadas. Não atribui automaticamente graduação, pós-graduação ou elegibilidade a um campus.")
+with st.expander("Importar e validar registros de graduação e pós-graduação", expanded=False):
+    from camadas_educacionais import CAMPOS, validar_camadas, resumo
+    modelo = pd.DataFrame(columns=CAMPOS)
+    st.download_button("Baixar esquema CSV para integração", modelo.to_csv(index=False).encode("utf-8-sig"), "esquema_inep_capes.csv", "text/csv")
+    arquivo_educacao = st.file_uploader("CSV harmonizado do INEP e/ou CAPES", type="csv", key="educacao")
+    if arquivo_educacao is not None:
+        try:
+            registros = validar_camadas(pd.read_csv(arquivo_educacao, dtype={"codigo_ibge": str, "identificador_origem": str}))
+            st.success(f"{len(registros)} registros importados para análise; a validação institucional continua necessária.")
+            st.dataframe(resumo(registros), hide_index=True, use_container_width=True)
+            st.dataframe(registros, hide_index=True, use_container_width=True)
+            pontos_educacao = registros.dropna(subset=["lat", "lon"])
+            if not pontos_educacao.empty:
+                st.map(pontos_educacao[["lat", "lon"]])
+            else:
+                st.info("Nenhum registro possui coordenadas validadas; o mapa não será gerado.")
+        except Exception as exc:
+            st.error(f"Erro na validação dos registros: {exc}")
+
+st.divider()
 st.subheader("UEL × IFPR — contexto histórico")
 st.write("Conforme informado pela comissão: houve empate, e o IFPR em Jaguariaíva foi selecionado pelo critério de interiorização. O cálculo territorial não reproduz automaticamente essa decisão.")
 st.caption("Para validação retrospectiva: informar os polos existentes à época, a condição A/B dos campi e os dados oficiais da REGIC. Não usar polos implantados posteriormente.")
