@@ -6,7 +6,9 @@ Saída: capes_geografia_2024.csv; não comprova linha de pesquisa em ensino.
 import os
 import re
 import unicodedata
-import urllib.request
+import requests
+import time
+import zipfile
 from pathlib import Path
 import pandas as pd
 
@@ -14,6 +16,7 @@ URL = ("https://dadosabertos.capes.gov.br/dataset/"
        "3a1264d8-b17c-4e6f-9282-601d04049e7b/resource/"
        "d024d60f-6876-41d3-b50d-da1a2e49bf39/download/"
        "br-capes-colsucup-curso-2024-2025-12-01.xlsx")
+URL_CSV = "https://dadosabertos.capes.gov.br/dataset/3a1264d8-b17c-4e6f-9282-601d04049e7b/resource/4939da83-fe0f-41f7-b4aa-f9b6c2a28981/download/br-capes-colsucup-curso-2024-2025-12-01.csv"
 BASE = Path(__file__).resolve().parent
 
 def normalizar(value):
@@ -21,16 +24,31 @@ def normalizar(value):
                    if not unicodedata.combining(c)).strip()
 
 def extrair(caminho):
-    xls = pd.ExcelFile(caminho)
     df = None
-    for sheet in xls.sheet_names:
-        d = pd.read_excel(caminho, sheet_name=sheet, dtype=str)
-        d.columns = [str(c).strip().upper() for c in d.columns]
-        if {"NM_AREA_CONHECIMENTO","NM_MUNICIPIO_PROGRAMA_IES","SG_ENTIDADE_ENSINO"}.issubset(d.columns):
-            df=d
-            break
+    exigidas = {"NM_AREA_CONHECIMENTO", "NM_MUNICIPIO_PROGRAMA_IES", "SG_ENTIDADE_ENSINO"}
+    if caminho.suffix.lower() == ".xlsx":
+        arquivo = pd.ExcelFile(caminho)
+        for aba in arquivo.sheet_names:
+            dados = pd.read_excel(caminho, sheet_name=aba, dtype=str)
+            dados.columns = [str(x).strip().upper() for x in dados.columns]
+            if exigidas.issubset(dados.columns):
+                df = dados
+                break
+    else:
+        for codificacao in ("utf-8-sig", "latin1"):
+            for sep in (";", ","):
+                try:
+                    dados = pd.read_csv(caminho, encoding=codificacao, sep=sep, dtype=str, low_memory=False)
+                    dados.columns = [str(x).strip().upper() for x in dados.columns]
+                    if exigidas.issubset(dados.columns):
+                        df = dados
+                        break
+                except (UnicodeError, ValueError):
+                    pass
+            if df is not None:
+                break
     if df is None:
-        raise ValueError("Planilha CAPES sem as colunas obrigatórias da documentação. Abas: "+str(xls.sheet_names))
+        raise ValueError("Arquivo CAPES sem as colunas obrigatorias: " + str(caminho))
     if "AN_BASE" in df:
         df=df[df["AN_BASE"].astype(str).str.contains("2024",regex=False,na=False)]
     # Área do conhecimento Geografia (não qualquer programa com geografia no nome).
@@ -51,20 +69,43 @@ def extrair(caminho):
     rec["status_linha_ensino"]="Não verificada nesta base (exige linhas de pesquisa)"
     return rec
 
-def main():
-    arquivo=BASE/"capes_cursos_2024_fonte.xlsx"
-    if not arquivo.exists():
-        print("Obtendo a planilha CAPES 2024 da fonte pública...")
-        urllib.request.urlretrieve(URL,arquivo)
-    rec=extrair(arquivo)
-    saida=BASE/"capes_geografia_2024.csv"
-    rec.to_csv(saida,index=False,encoding="utf-8-sig")
-    print(f"{len(rec)} registros de curso; {rec['codigo_programa'].nunique()} programas; {rec['sigla_ies'].nunique()} IES")
-    for mun in ["LONDRINA","MONTES CLAROS","BELO HORIZONTE",
-                "VITORIA DA CONQUISTA","PRESIDENTE PRUDENTE","BARRA DO GARCAS"]:
-        sub=rec[rec["municipio"].apply(normalizar).eq(mun)]
-        print(mun,":",len(sub),"registros;",sorted(sub["sigla_ies"].dropna().unique().tolist()))
-    os.unlink(arquivo)
+def baixar_fonte():
+    """Tenta XLSX e, em caso de falha, CSV da mesma fonte CAPES oficial."""
+    falhas = []
+    for url, extensao in ((URL, "xlsx"), (URL_CSV, "csv")):
+        destino = BASE / ("capes_cursos_2024_fonte." + extensao)
+        for tentativa in range(1, 4):
+            try:
+                with requests.get(url, stream=True, timeout=(20, 90), headers={"User-Agent": "Mozilla/5.0", "Accept-Encoding": "identity"}) as resposta:
+                    resposta.raise_for_status()
+                    with destino.open("wb") as saida:
+                        for bloco in resposta.iter_content(chunk_size=65536):
+                            if bloco:
+                                saida.write(bloco)
+                if destino.stat().st_size < 10000:
+                    raise ValueError("Arquivo vazio/incompleto")
+                if extensao == "xlsx" and not zipfile.is_zipfile(destino):
+                    raise ValueError("XLSX invalido")
+                print(f"CAPES {extensao}: {destino.stat().st_size} bytes", flush=True)
+                return destino
+            except Exception as erro:
+                falhas.append(f"{extensao} tentativa {tentativa}: {type(erro).__name__}: {erro}")
+                destino.unlink(missing_ok=True)
+                time.sleep(tentativa * 2)
+    raise RuntimeError("Download CAPES falhou: " + " | ".join(falhas))
 
-if __name__=="__main__":
+def main():
+    arquivo = baixar_fonte()
+    try:
+        rec = extrair(arquivo)
+        saida = BASE / "capes_geografia_2024.csv"
+        rec.to_csv(saida, index=False, encoding="utf-8-sig")
+        print(f"CAPES: {len(rec)} cursos; {rec.codigo_programa.nunique()} programas; {rec.sigla_ies.nunique()} IES", flush=True)
+        for mun in ["LONDRINA", "MONTES CLAROS", "BELO HORIZONTE", "VITORIA DA CONQUISTA", "PRESIDENTE PRUDENTE", "BARRA DO GARCAS"]:
+            sub = rec[rec["municipio"].apply(normalizar).eq(mun)]
+            print(mun, len(sub), sorted(sub["sigla_ies"].unique().tolist()), flush=True)
+    finally:
+        arquivo.unlink(missing_ok=True)
+
+if __name__ == "__main__":
     main()
