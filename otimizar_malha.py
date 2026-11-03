@@ -33,7 +33,7 @@ for feature in dados["features"]:
                          "uf": props.get("uf", ""),
                          "faixa": props.get("faixa", ""),
                          "distancia_km": props.get("distancia_km", None)},
-                     "geometry": arredondar(mapping(simples)["coordinates"]) and {
+                     "geometry": {
                          "type": mapping(simples)["type"],
                          "coordinates": arredondar(mapping(simples)["coordinates"])
                      }})
