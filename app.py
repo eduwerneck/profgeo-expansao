@@ -30,9 +30,9 @@ st.dataframe(pilotos[["instituicao", "campus", "municipio", "uf", "polo", "dista
 st.download_button("Baixar diagnóstico das candidaturas-piloto", pilotos.to_csv(index=False).encode("utf-8-sig"), "diagnostico_pilotos.csv", "text/csv")
 st.caption("As distâncias são calculadas em tempo de execução a partir dos pontos municipais de referência, não de coordenadas verificadas dos edifícios. As estrelas identificam candidaturas-piloto no mapa municipal quando o CSV IBGE é carregado.")
 
-st.subheader("Rede existente do PROFGEO — 18 instituições")
+st.subheader("Mapa integrado: cobertura territorial e candidaturas-piloto")
 st.caption("Pontos municipais aproximados; alguns campi ainda precisam de validação.")
-modo_mapa = st.radio("Visualização cartográfica", ["Mapa de calor", "Localização dos polos"], horizontal=True)
+modo_mapa = st.radio("Visualização cartográfica", ["Faixas de cobertura territorial", "Mapa de calor", "Localização dos polos"], horizontal=True)
 raio = st.slider("Raio visual da concentração (pixels)", 15, 90, 40, 5) if modo_mapa == "Mapa de calor" else 40
 pontos = rede.dropna(subset=["lat", "lon"]).copy()
 pontos["lat"] = pd.to_numeric(pontos["lat"], errors="coerce")
@@ -40,16 +40,22 @@ pontos["lon"] = pd.to_numeric(pontos["lon"], errors="coerce")
 pontos = pontos.dropna(subset=["lat", "lon"])
 pontos["peso"] = 1
 camadas = []
+if modo_mapa == "Faixas de cobertura territorial":
+    for km, cor in [(300,[216,110,66,38]),(200,[245,176,64,45]),(100,[55,156,106,60])]:
+        camadas.append(pdk.Layer("ScatterplotLayer", data=pontos, get_position="[lon, lat]", get_radius=km*1000, radius_units="meters", get_fill_color=cor, stroked=False, pickable=False))
 if modo_mapa == "Mapa de calor":
     camadas.append(pdk.Layer("HeatmapLayer", data=pontos, get_position="[lon, lat]", get_weight="peso", radius_pixels=raio, intensity=1, threshold=0.03, pickable=False))
 camadas.append(pdk.Layer("ScatterplotLayer", data=pontos, get_position="[lon, lat]", get_radius=12000 if modo_mapa == "Localização dos polos" else 6000, radius_min_pixels=4, radius_max_pixels=10, get_fill_color=[23, 87, 149, 210] if modo_mapa == "Localização dos polos" else [255, 255, 255, 210], get_line_color=[12, 32, 55], line_width_min_pixels=1, stroked=True, pickable=True))
+estrelas = pilotos.copy()
+estrelas["simbolo"] = "★"
+camadas.append(pdk.Layer("TextLayer", data=estrelas, get_position="[lon, lat]", get_text="simbolo", get_size=35, size_units="pixels", get_color=[20,20,20,255], pickable=True))
 st.pydeck_chart(pdk.Deck(
     map_style="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
     initial_view_state=pdk.ViewState(latitude=-14.5, longitude=-52.5, zoom=3.25, pitch=0),
     layers=camadas,
     tooltip={"html": "<b>{instituicao}</b><br/>{campus}<br/>{municipio} — {uf}", "style": {"color": "white"}}
 ))
-st.caption("Calor = concentração visual de pontos municipais dos polos existentes, não demanda educacional, acessibilidade ou prioridade de expansão. O raio é apenas um parâmetro gráfico; não corresponde a quilômetros. Polos próximos podem se sobrepor.")
+st.caption("★ = candidaturas UNESP e UFMT. Na opção Faixas de cobertura: verde até 100 km, amarelo até 200 km, laranja até 300 km dos polos; fora dos círculos, mais de 300 km. Sobreposições podem intensificar as cores. O calor representa apenas concentração de polos, não demanda educacional. Pontos municipais aproximados.")
 with st.expander("Consultar polos e ressalvas"):
     st.dataframe(rede, use_container_width=True, hide_index=True)
     st.download_button("Baixar rede de referência", rede.to_csv(index=False).encode("utf-8-sig"), "rede_existente_18_polos.csv", "text/csv")
