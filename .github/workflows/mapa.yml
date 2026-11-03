@@ -1,8 +1,25 @@
-name: Mapa IBGE
-on: workflow_dispatch
+name: Gerar coropleta IBGE 2022
+on:
+  workflow_dispatch:
 jobs:
   gerar:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
-      - run: echo teste
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Instalar bibliotecas
+        run: pip install geopandas pandas shapely pyogrio
+      - name: Baixar malha municipal oficial
+        run: curl -fL --retry 3 -o BR_Municipios_2022.zip https://geoftp.ibge.gov.br/organizacao_do_territorio/malhas_territoriais/malhas_municipais/municipio_2022/Brasil/BR/BR_Municipios_2022.zip
+      - name: Calcular distancias e gerar GeoJSON
+        run: python preparar_malha.py BR_Municipios_2022.zip
+      - name: Publicar mapa no repositorio
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@users.noreply.github.com
+          git add municipios_profgeo_2022.geojson
+          git diff --cached --quiet || (git commit -m "Atualizar mapa municipal IBGE" && git push)
