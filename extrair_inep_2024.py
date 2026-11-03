@@ -108,8 +108,28 @@ def main():
                     resultados.append(saida)
         if not resultados:
             raise ValueError("Nenhum curso de Geografia encontrado. Verificar nome e esquema do ZIP INEP.")
+        # A tabela de IES identifica o nome completo associado ao código CO_IES.
+        # O vínculo não é inferido pelo município da sede da universidade.
+        arquivos_ies=[n for n in nomes if ("IES_2024" in norm(n) or "CADASTRO_IES" in norm(n))]
+        nomes_ies={}
+        if not arquivos_ies:
+            raise ValueError("Arquivo de instituições IES não localizado no pacote oficial INEP")
+        for ies_nome in arquivos_ies:
+            with z.open(ies_nome) as raw:
+                import io
+                fonte=io.TextIOWrapper(raw,encoding="latin1")
+                dados_ies=pd.read_csv(fonte,sep=";",dtype=str,low_memory=False)
+            dados_ies.columns=[str(x).strip() for x in dados_ies.columns]
+            cod=escolher_coluna(dados_ies.columns,"CO_IES")
+            nome=escolher_coluna(dados_ies.columns,"NO_IES")
+            if cod and nome:
+                nomes_ies=dict(zip(dados_ies[cod].astype(str), dados_ies[nome].astype(str)))
+                break
+        if not nomes_ies:
+            raise ValueError("Não foi possível vincular os códigos de IES aos nomes oficiais INEP")
         resultado=pd.concat(resultados,ignore_index=True)
         resultado=resultado.drop_duplicates(subset=["codigo_ies","codigo_curso","municipio_ibge"])
+        resultado.insert(1,"nome_ies",resultado["codigo_ies"].map(nomes_ies).fillna(""))
         # Retém apenas colunas observadas. Ausência de matrícula não equivale a zero.
         if not resultado["municipio_ibge"].astype(str).str.fullmatch(r"\d{7}").all():
             print("AVISO: existem códigos municipais não padronizados; conferir georreferenciamento.",flush=True)
