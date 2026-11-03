@@ -1,7 +1,7 @@
 import pandas as pd
 import pydeck as pdk
 import streamlit as st
-from engine import avaliar
+from engine import avaliar, distancia_km
 
 st.set_page_config(page_title="PROFGEO — laboratório territorial", layout="wide")
 st.title("PROFGEO | Laboratório de expansão territorial")
@@ -14,6 +14,22 @@ base = pd.read_csv("candidatos_exemplo.csv", keep_default_na=False)
 rede = pd.read_csv("rede_existente_18_polos.csv")
 rede["polo"] = rede["instituicao"] + " — " + rede["campus"]
 modelo_polos = rede[["polo", "municipio", "uf", "lat", "lon", "fonte"]].copy()
+st.subheader("Candidaturas-piloto — UNESP e UFMT Araguaia")
+st.caption("Teste espacial com coordenadas municipais provisórias. As classificações A/B dependem de evidência documental por campus.")
+pilotos = pd.read_csv("candidaturas_piloto.csv", dtype={"codigo_ibge": str}, keep_default_na=False)
+pilotos["tipo"] = pilotos["tipo"].replace("", "Pendente")
+pilotos["polo"] = ""
+for i, r in pilotos.iterrows():
+    dists = [(distancia_km(r["lat"], r["lon"], p["lat"], p["lon"]), p["polo"]) for _, p in modelo_polos.iterrows()]
+    dist, nome = min(dists)
+    pilotos.at[i, "distancia_km"] = round(dist, 1)
+    pilotos.at[i, "polo"] = nome
+    pilotos.at[i, "faixa_territorial"] = "1 (>300 km)" if dist > 300 else "2 (200–300 km)" if dist > 200 else "3 (100–200 km)" if dist > 100 else "4 (até 100 km)"
+    pilotos.at[i, "categoria"] = "Pendente: verificar A/B no INEP/CAPES"
+st.dataframe(pilotos[["instituicao", "campus", "municipio", "uf", "polo", "distancia_km", "faixa_territorial", "categoria", "status_georreferenciamento"]], use_container_width=True, hide_index=True)
+st.download_button("Baixar diagnóstico das candidaturas-piloto", pilotos.to_csv(index=False).encode("utf-8-sig"), "diagnostico_pilotos.csv", "text/csv")
+st.caption("As distâncias são calculadas em tempo de execução a partir dos pontos municipais de referência, não de coordenadas verificadas dos edifícios.")
+
 st.subheader("Rede existente do PROFGEO — 18 instituições")
 st.caption("Pontos municipais aproximados; alguns campi ainda precisam de validação.")
 modo_mapa = st.radio("Visualização cartográfica", ["Mapa de calor", "Localização dos polos"], horizontal=True)
