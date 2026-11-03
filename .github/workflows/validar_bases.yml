@@ -3,6 +3,7 @@ on:
   push:
     paths:
       - "validar_bases.py"
+      - "teste_cenario_seis.py"
       - "regic_municipios_2018.csv"
       - "indice_municipios_profgeo.csv"
       - "rede_existente_18_polos.csv"
@@ -19,3 +20,5 @@ jobs:
           python-version: "3.11"
       - name: Verificar bases oficiais e cenário demonstrativo
         run: python validar_bases.py
+      - name: Testar o ranking das seis localidades
+        run: python teste_cenario_seis.py
