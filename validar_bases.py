@@ -26,7 +26,7 @@ def validar():
         codigos = [str(l["codigo_ibge"]).strip() for l in linhas]
         if esperado is not None and len(linhas) != esperado:
             erros.append(f"{nome}: esperado {esperado} linhas; encontrado {len(linhas)}")
-        if any(not re.fullmatch(r"\\d{7}", c) for c in codigos):
+        if any(not re.fullmatch(r"\d{7}", c) for c in codigos):
             erros.append(f"{nome}: código IBGE inválido")
         if len(set(codigos)) != len(codigos):
             erros.append(f"{nome}: código IBGE duplicado")
@@ -66,7 +66,7 @@ def validar():
             erros.append(f"{caso['municipio']}/{caso['uf']}: sem vínculo com a REGIC")
         else:
             hierarquia = regic_por_codigo[codigo]["hierarquia_regic"]
-            if not re.search(r"\\((?:1[ABC]|2[ABC]|3[AB]|4[AB]|5)\\)", hierarquia, flags=re.I):
+            if not re.search(r"\((?:1[ABC]|2[ABC]|3[AB]|4[AB]|5)\)", hierarquia, flags=re.I):
                 erros.append(f"{caso['municipio']}: hierarquia REGIC não reconhecida: {hierarquia}")
         if caso.get("tipo", "").strip():
             alertas.append(f"{caso['municipio']}: tipo A/B informado sem comprovação acadêmica automatizada")
