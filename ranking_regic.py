@@ -8,17 +8,19 @@ import pandas as pd
 
 def nivel_regic(texto):
     s=str(texto or "").lower()
-    # Hierarquia publicada pela REGIC (1 metrópole a 5 centro local).
-    if "metrópole" in s or "metropole" in s:
-        return 1, "Metrópole"
-    if "capital regional" in s:
-        return 2, "Capital Regional"
-    if "centro sub-regional" in s or "centro subregional" in s:
-        return 3, "Centro Sub-Regional"
-    if "centro de zona" in s:
-        return 4, "Centro de Zona"
-    if "centro local" in s:
-        return 5, "Centro Local"
+    # Ordenação ordinal das subdivisões oficiais REGIC 2018.
+    # Esta é apenas uma convenção de simulação, não um índice de capacidade.
+    import re
+    grupos = [
+        ("1a", 1), ("1b", 2), ("1c", 3),
+        ("2a", 4), ("2b", 5), ("2c", 6),
+        ("3a", 7), ("3b", 8),
+        ("4a", 9), ("4b", 10), ("5", 11),
+    ]
+    match = re.search(r"\\((1[abc]|2[abc]|3[ab]|4[ab]|5)\\)", s)
+    if match:
+        codigo=match.group(1)
+        return dict(grupos)[codigo], codigo.upper()
     return None, "Não verificada"
 
 def ordenar_cenarios(df):
