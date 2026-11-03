@@ -1,6 +1,7 @@
 """PROFGEO Expansão — interface cartográfica simplificada."""
 import math
 import json
+import unicodedata
 from pathlib import Path
 import pandas as pd
 import pydeck as pdk
@@ -48,6 +49,55 @@ def normalizar_candidatos(df):
     if "tipo" not in df.columns:
         df["tipo"] = ""
     return df
+
+def chave_nome(valor):
+    texto = unicodedata.normalize("NFKD", str(valor or "").casefold())
+    return "".join(ch for ch in texto if not unicodedata.combining(ch)).strip()
+
+@st.cache_data
+def carregar_regic():
+    caminho = Path("regic_municipios_2018.csv")
+    if not caminho.exists():
+        return None
+    tabela = pd.read_csv(caminho, dtype={"codigo_ibge": str}, keep_default_na=False, encoding="utf-8-sig")
+    colunas = {"codigo_ibge", "hierarquia_regic", "regiao_influencia_regic"}
+    if not colunas.issubset(tabela.columns) or tabela["codigo_ibge"].duplicated().any():
+        raise ValueError("Base REGIC inválida: cabeçalho incompleto ou municípios duplicados.")
+    return tabela
+
+@st.cache_data
+def indice_municipios():
+    caminho = Path("municipios_profgeo_2022.geojson")
+    if not caminho.exists():
+        return {}
+    mapa = json.loads(caminho.read_text(encoding="utf-8"))
+    indice = {}
+    for feicao in mapa.get("features", []):
+        p = feicao.get("properties", {})
+        chave = (chave_nome(p.get("municipio")), str(p.get("uf", "")).upper().strip())
+        if chave not in indice and p.get("codigo_ibge"):
+            indice[chave] = str(p["codigo_ibge"]).zfill(7)
+    return indice
+
+def anexar_regic(resultado):
+    resultado = resultado.copy()
+    regic = carregar_regic()
+    if regic is None:
+        resultado["hierarquia_regic"] = "Não disponível: executar integração REGIC"
+        resultado["regiao_influencia_regic"] = ""
+        resultado["status_regic"] = "Aguardando processamento do IBGE"
+        return resultado
+    mapa_municipios = indice_municipios()
+    if "codigo_ibge" not in resultado:
+        resultado["codigo_ibge"] = ""
+    resultado["codigo_ibge"] = [
+        str(cod).strip().split(".")[0].zfill(7) if str(cod).strip() else mapa_municipios.get((chave_nome(mun),str(uf).upper().strip()), "")
+        for cod,mun,uf in zip(resultado["codigo_ibge"],resultado["municipio"],resultado["uf"])
+    ]
+    resultado = resultado.merge(regic[["codigo_ibge","hierarquia_regic","regiao_influencia_regic"]],
+                                on="codigo_ibge", how="left", validate="m:1")
+    resultado["status_regic"] = resultado["hierarquia_regic"].notna().map({True:"Vinculado por código IBGE",False:"Município não identificado na REGIC"})
+    return resultado
 
 def aneis(lat, lon, raio_km, passos=48):
     a = math.radians(float(lat))
@@ -137,7 +187,7 @@ with st.form("controles_expansao"):
 if calcular:
     try:
         candidatos = normalizar_candidatos(pd.read_csv(arq_candidatos, keep_default_na=False) if arq_candidatos else ler_pilotos())
-        resultado = avaliar(candidatos, sedes_padrao)
+        resultado = anexar_regic(avaliar(candidatos, sedes_padrao))
         st.session_state["resultado_expansao"] = resultado
         st.session_state["versao_mapa"] = st.session_state.get("versao_mapa", 0) + 1
         st.rerun()
@@ -145,8 +195,10 @@ if calcular:
         st.error(f"Não foi possível calcular: {exc}")
 
 if resultados is not None and not resultados.empty:
+    if "status_regic" in resultados.columns:
+        st.caption("REGIC das candidaturas: " + " | ".join(resultados["status_regic"].astype(str).unique()))
     st.download_button("Baixar resultados (CSV)", resultados.to_csv(index=False).encode("utf-8-sig"), "diagnostico_expansao_profgeo.csv", mime="text/csv", use_container_width=True)
-    st.caption("Resultado calculado. Tipo A/B não comprovado permanece pendente; distância não equivale a acessibilidade ou prioridade institucional.")
+    st.caption("Resultado calculado. REGIC 2018 é dimensão descritiva independente, sem peso na classificação por distância. Tipo A/B permanece pendente quando não comprovado.")
 else:
     st.button("Baixar resultados (CSV)", disabled=True, use_container_width=True)
     st.caption("Carregue candidaturas ou utilize os dois casos-piloto incluídos; clique em Calcular expansão.")
