@@ -28,7 +28,7 @@ for i, r in pilotos.iterrows():
     pilotos.at[i, "categoria"] = "Pendente: verificar A/B no INEP/CAPES"
 st.dataframe(pilotos[["instituicao", "campus", "municipio", "uf", "polo", "distancia_km", "faixa_territorial", "categoria", "status_georreferenciamento"]], use_container_width=True, hide_index=True)
 st.download_button("Baixar diagnóstico das candidaturas-piloto", pilotos.to_csv(index=False).encode("utf-8-sig"), "diagnostico_pilotos.csv", "text/csv")
-st.caption("As distâncias são calculadas em tempo de execução a partir dos pontos municipais de referência, não de coordenadas verificadas dos edifícios.")
+st.caption("As distâncias são calculadas em tempo de execução a partir dos pontos municipais de referência, não de coordenadas verificadas dos edifícios. As estrelas identificam candidaturas-piloto no mapa municipal quando o CSV IBGE é carregado.")
 
 st.subheader("Rede existente do PROFGEO — 18 instituições")
 st.caption("Pontos municipais aproximados; alguns campi ainda precisam de validação.")
@@ -145,7 +145,7 @@ else:
         st.pydeck_chart(pdk.Deck(
             map_style="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
             initial_view_state=pdk.ViewState(latitude=-14.5, longitude=-52.5, zoom=3.2),
-            layers=[pdk.Layer("ScatterplotLayer", data=municipios, get_position="[lon, lat]", get_fill_color="cor", get_radius=7500, radius_min_pixels=2, radius_max_pixels=8, pickable=True)],
+            layers=[pdk.Layer("ScatterplotLayer", data=municipios, get_position="[lon, lat]", get_fill_color="cor", get_radius=7500, radius_min_pixels=2, radius_max_pixels=8, pickable=True), pdk.Layer("TextLayer", data=pilotos.assign(simbolo="★", identificacao=pilotos["instituicao"] + " — " + pilotos["campus"]), get_position="[lon, lat]", get_text="simbolo", get_size=28, size_units="pixels", get_color=[20, 20, 20, 255], get_text_anchor="middle", get_alignment_baseline="center", pickable=True)],
             tooltip={"html": "<b>{municipio} ({uf})</b><br/>Polo mais próximo: {polo_proximo}<br/>Distância: {distancia_km} km<br/>{faixa}<br/>{oportunidade_preliminar}"}
         ))
         resumo = municipios.groupby("faixa", observed=False).size().rename("municípios").reset_index()
