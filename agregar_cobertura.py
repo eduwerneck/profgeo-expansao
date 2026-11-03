@@ -3,6 +3,7 @@ O arquivo original com os 5570 municípios permanece intacto, assim como seus va
 Este produto agregado é exclusivamente cartográfico.
 """
 import json
+import csv
 from pathlib import Path
 from shapely.geometry import shape, mapping
 from shapely.ops import unary_union
@@ -19,6 +20,12 @@ for f in dados["features"]:
         if not g.is_empty:
             grupos[faixa].append(g)
 saida=[]
+with Path("indice_municipios_profgeo.csv").open("w", encoding="utf-8", newline="") as arquivo_indice:
+    writer=csv.writer(arquivo_indice)
+    writer.writerow(["codigo_ibge","municipio","uf"])
+    for f in dados["features"]:
+        p=f.get("properties",{})
+        writer.writerow([p.get("codigo_ibge",""),p.get("municipio",""),p.get("uf","")])
 for faixa, geometrias in grupos.items():
     if not geometrias:
         raise ValueError(f"Faixa sem municípios: {faixa}")
