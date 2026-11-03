@@ -17,7 +17,7 @@ def nivel_regic(texto):
         ("3a", 7), ("3b", 8),
         ("4a", 9), ("4b", 10), ("5", 11),
     ]
-    match = re.search(r"\\((1[abc]|2[abc]|3[ab]|4[ab]|5)\\)", s)
+    match = re.search(r"\((1[abc]|2[abc]|3[ab]|4[ab]|5)\)", s)
     if match:
         codigo=match.group(1)
         return dict(grupos)[codigo], codigo.upper()
