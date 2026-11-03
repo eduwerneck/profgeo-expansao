@@ -93,6 +93,8 @@ def montar_mapa(sedes, resultados):
 sedes_padrao = normalizar_sedes(ler_sedes())
 sedes = sedes_padrao
 resultados = st.session_state.get("resultado_expansao")
+if not Path("municipios_profgeo_2022.geojson").exists():
+    st.warning("Mapa coroplético municipal ainda indisponível: falta gerar e publicar municipios_profgeo_2022.geojson a partir da malha IBGE 2022. A visualização abaixo é apenas provisória.")
 st.pydeck_chart(montar_mapa(sedes, resultados), use_container_width=True)
 st.caption("Azul: sedes atuais | ★: candidaturas calculadas | Verde: até 100 km | Verde-claro: 100–200 km | Amarelo: 200–300 km | Vermelho: mais de 300 km. Sem o GeoJSON municipal processado, o mapa usa círculos de cobertura provisórios.")
 
