@@ -96,7 +96,22 @@ else:
         municipios["faixa"] = pd.cut(municipios["distancia_km"], bins=[-0.01, 100, 200, 300, np.inf], labels=["Até 100 km", "100–200 km", "200–300 km", "Mais de 300 km"], include_lowest=True)
         paleta = {"Até 100 km": [38, 136, 94, 180], "100–200 km": [119, 185, 84, 180], "200–300 km": [245, 171, 64, 185], "Mais de 300 km": [197, 65, 62, 195]}
         municipios["cor"] = municipios["faixa"].astype(str).map(paleta)
-        st.caption("Legenda: verde escuro até 100 km; verde claro 100–200 km; laranja 200–300 km; vermelho acima de 300 km.")
+        st.markdown("**Legenda — distância geodésica ao polo PROFGEO mais próximo (km)**")
+        legenda = [
+            ("#26885E", "Até 100 km"),
+            ("#77B954", "Mais de 100 até 200 km"),
+            ("#F5AB40", "Mais de 200 até 300 km"),
+            ("#C5413E", "Mais de 300 km"),
+        ]
+        cols_legenda = st.columns(4)
+        for coluna, (cor, rotulo) in zip(cols_legenda, legenda):
+            with coluna:
+                st.markdown(
+                    f'<div style="display:flex;align-items:center;gap:8px;margin:3px 0 12px 0;">'
+                    f'<span style="display:inline-block;flex-shrink:0;width:24px;height:17px;background:{cor};border:1px solid #888;border-radius:3px;"></span>'
+                    f'<span style="font-size:0.85rem;">{rotulo}</span></div>',
+                    unsafe_allow_html=True,
+                )
         st.pydeck_chart(pdk.Deck(
             map_style="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
             initial_view_state=pdk.ViewState(latitude=-14.5, longitude=-52.5, zoom=3.2),
