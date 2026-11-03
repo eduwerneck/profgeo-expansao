@@ -244,9 +244,9 @@ if resultados is not None and not resultados.empty:
     if regic_disponivel:
         tabela = tabela.sort_values("rank_cenario_regic", kind="stable")
         tabela["Posição"] = tabela["rank_cenario_regic"].astype(int)
-        st.caption("Cenário exploratório: primeiro a faixa de distância ao polo mais próximo; dentro da mesma faixa, a hierarquia REGIC 2018; depois, a distância exata. Não é uma decisão institucional.")
+        st.caption("A REGIC 2018 atua apenas como desempate: dentro da mesma categoria A1–B4 validada; enquanto A/B estiver pendente, dentro da mesma faixa territorial provisória. Distância exata resolve empates residuais. Não é uma decisão institucional.")
     else:
-        tabela = tabela.sort_values("distancia_km", ascending=False, kind="stable")
+        tabela = tabela.sort_values("rank_base", kind="stable") if "rank_base" in tabela else tabela.sort_values("distancia_km", ascending=False, kind="stable")
         tabela["Posição"] = range(1, len(tabela) + 1)
         st.info("Ranking provisório")
     tabela["Instituição / campus"] = tabela["instituicao"].astype(str) + " — " + tabela["campus"].astype(str)
@@ -274,7 +274,7 @@ if resultados is not None and not resultados.empty:
             "Mudança com REGIC": st.column_config.TextColumn("Variação", width="small"),
         },
     )
-    st.caption("As cores representam exclusivamente a lacuna de proximidade à rede. A REGIC reorganiza candidaturas dentro da mesma faixa; cursos, matrículas e análise da comissão ainda não entram neste ranking.")
+    st.caption("As cores mostram exclusivamente a proximidade à rede. A REGIC nunca altera a ordem entre categorias A1–B4 distintas; enquanto essas categorias não estiverem validadas, só desempata dentro de cada faixa territorial. Dados acadêmicos ainda precisam de validação.")
     with st.expander("Exportação e dados técnicos", expanded=False):
         st.download_button("Baixar ranking completo (Excel XLSX)",
                            montar_planilha_excel(quadro, "Ranking"),
