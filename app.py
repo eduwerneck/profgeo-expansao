@@ -111,18 +111,27 @@ def aneis(lat, lon, raio_km, passos=48):
         pts.append([math.degrees(lam), math.degrees(phi)])
     return pts
 
+@st.cache_data(show_spinner=False)
+def carregar_camada_cartografica(caminho, versao):
+    """Deserializa e estiliza os municípios apenas uma vez por versão do arquivo."""
+    dados = json.loads(Path(caminho).read_text(encoding="utf-8"))
+    cores = {"Até 100 km": [38,136,94,185], "100–200 km": [119,185,84,185],
+             "200–300 km": [245,171,64,185], "Mais de 300 km": [197,65,62,185]}
+    for feicao in dados.get("features", []):
+        props = feicao.setdefault("properties", {})
+        props["cor"] = cores.get(props.get("faixa"), [140,140,140,100])
+        props["identificacao"] = props.get("municipio", "Município")
+        props["detalhe"] = str(props.get("distancia_km", "?")) + " km | " + str(props.get("faixa", ""))
+    return dados
+
 def montar_mapa(sedes, resultados):
     layers = []
-    malha = Path("municipios_profgeo_2022.geojson")
+    malha_leve = Path("municipios_profgeo_2022_leve.geojson")
+    malha = malha_leve if malha_leve.exists() else Path("municipios_profgeo_2022.geojson")
     if malha.exists():
-        dados = json.loads(malha.read_text(encoding="utf-8"))
-        cores = {"Até 100 km": [38,136,94,185], "100–200 km": [119,185,84,185], "200–300 km": [245,171,64,185], "Mais de 300 km": [197,65,62,185]}
-        for feicao in dados.get("features", []):
-            props = feicao.setdefault("properties", {})
-            props["cor"] = cores.get(props.get("faixa"), [140,140,140,100])
-            props["identificacao"] = props.get("municipio", "Município")
-            props["detalhe"] = str(props.get("distancia_km", "?")) + " km | " + str(props.get("faixa", ""))
-        layers.append(pdk.Layer("GeoJsonLayer", data=dados, filled=True, stroked=False, get_fill_color="properties.cor", pickable=True))
+        dados = carregar_camada_cartografica(str(malha), malha.stat().st_mtime_ns)
+        layers.append(pdk.Layer("GeoJsonLayer", data=dados, filled=True, stroked=False,
+                                get_fill_color="properties.cor", pickable=True))
     else:
         # Visualização substituta enquanto a malha municipal processada não estiver no repositório.
         for km, cor in ((300,[221,120,70,38]), (200,[245,177,73,48]), (100,[51,157,111,64])):
