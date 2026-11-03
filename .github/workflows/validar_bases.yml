@@ -3,6 +3,11 @@ on:
   push:
     paths:
       - "validar_bases.py"
+      - "app.py"
+      - "academico.py"
+      - "extrair_capes_2024.py"
+      - "extrair_inep_2024.py"
+      - "ranking_regic.py"
       - "teste_cenario_seis.py"
       - "regic_municipios_2018.csv"
       - "indice_municipios_profgeo.csv"
@@ -18,6 +23,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      - name: Compilar arquivos Python e detectar erros de sintaxe
+        run: python -m py_compile app.py engine.py ranking_regic.py academico.py extrair_capes_2024.py extrair_inep_2024.py validar_bases.py teste_cenario_seis.py
       - name: Verificar bases oficiais e cenário demonstrativo
         run: python validar_bases.py
       - name: Testar o ranking das seis localidades
