@@ -65,19 +65,17 @@ def carregar_regic():
         raise ValueError("Base REGIC inválida: cabeçalho incompleto ou municípios duplicados.")
     return tabela
 
-@st.cache_data
+@st.cache_data(show_spinner=False)
 def indice_municipios():
-    caminho = Path("municipios_profgeo_2022.geojson")
+    # Índice tabular leve; não carregar as geometrias municipais para consultar REGIC.
+    caminho = Path("indice_municipios_profgeo.csv")
     if not caminho.exists():
         return {}
-    mapa = json.loads(caminho.read_text(encoding="utf-8"))
-    indice = {}
-    for feicao in mapa.get("features", []):
-        p = feicao.get("properties", {})
-        chave = (chave_nome(p.get("municipio")), str(p.get("uf", "")).upper().strip())
-        if chave not in indice and p.get("codigo_ibge"):
-            indice[chave] = str(p["codigo_ibge"]).zfill(7)
-    return indice
+    tabela = pd.read_csv(caminho, dtype={"codigo_ibge": str}, keep_default_na=False)
+    return {
+        (chave_nome(r.municipio), str(r.uf).upper().strip()): str(r.codigo_ibge).zfill(7)
+        for r in tabela.itertuples()
+    }
 
 def anexar_regic(resultado):
     resultado = resultado.copy()
@@ -126,8 +124,9 @@ def carregar_camada_cartografica(caminho, versao):
 
 def montar_mapa(sedes, resultados):
     layers = []
-    malha_leve = Path("municipios_profgeo_2022_leve.geojson")
-    malha = malha_leve if malha_leve.exists() else Path("municipios_profgeo_2022.geojson")
+    # Não enviar 5570 polígonos municipais ao navegador.
+    # Camada agregada de quatro classes tem geometria muito mais compacta.
+    malha = Path("cobertura_profgeo_agregada.geojson")
     if malha.exists():
         dados = carregar_camada_cartografica(str(malha), malha.stat().st_mtime_ns)
         layers.append(pdk.Layer("GeoJsonLayer", data=dados, filled=True, stroked=False,
@@ -168,8 +167,8 @@ def montar_mapa(sedes, resultados):
 sedes_padrao = normalizar_sedes(ler_sedes())
 sedes = sedes_padrao
 resultados = st.session_state.get("resultado_expansao")
-if not Path("municipios_profgeo_2022.geojson").exists():
-    st.warning("Mapa coroplético municipal ainda indisponível: falta gerar e publicar municipios_profgeo_2022.geojson a partir da malha IBGE 2022. A visualização abaixo é apenas provisória.")
+if not Path("cobertura_profgeo_agregada.geojson").exists():
+    st.info("Camada cartográfica agregada em preparação; exibindo cobertura provisória até a publicação automática.")
 st.pydeck_chart(montar_mapa(sedes, resultados), use_container_width=True, key="mapa_expansao_" + str(st.session_state.get("versao_mapa", 0)))
 st.markdown("**Prioridade territorial preliminar — distância ao polo PROFGEO mais próximo**")
 legenda = [
