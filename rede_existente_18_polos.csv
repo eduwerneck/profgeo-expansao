@@ -1,19 +1,19 @@
 instituicao,campus,municipio,uf,lat,lon,fonte,status_georreferenciamento
-IFB,,,,,,https://www.ufsm.br/cursos/pos-graduacao/santa-maria/profgeo/profgeo-nacional,Campus a confirmar
-IFC,,,,,,https://www.ufsm.br/cursos/pos-graduacao/santa-maria/profgeo/profgeo-nacional,Campus a confirmar
-IFMG,,,,,,https://www.ufsm.br/cursos/pos-graduacao/santa-maria/profgeo/profgeo-nacional,Campus a confirmar
-IFPR,,,,,,https://www.ufsm.br/cursos/pos-graduacao/santa-maria/profgeo/profgeo-nacional,Campus a confirmar
-IFRO,,,,,,https://www.ufsm.br/cursos/pos-graduacao/santa-maria/profgeo/profgeo-nacional,Campus a confirmar
-UnB,,,,,,https://www.ufsm.br/cursos/pos-graduacao/santa-maria/profgeo/profgeo-nacional,Campus a confirmar
-UPE,,,,,,https://www.ufsm.br/cursos/pos-graduacao/santa-maria/profgeo/profgeo-nacional,Campus a confirmar
-UFCG,,,,,,https://www.ufsm.br/cursos/pos-graduacao/santa-maria/profgeo/profgeo-nacional,Campus a confirmar
-UFGD,,,,,,https://www.ufsm.br/cursos/pos-graduacao/santa-maria/profgeo/profgeo-nacional,Campus a confirmar
-UFMA,,,,,,https://www.ufsm.br/cursos/pos-graduacao/santa-maria/profgeo/profgeo-nacional,Campus a confirmar
-UFPA,,,,,,https://www.ufsm.br/cursos/pos-graduacao/santa-maria/profgeo/profgeo-nacional,Campus a confirmar
-UFPE,,,,,,https://www.ufsm.br/cursos/pos-graduacao/santa-maria/profgeo/profgeo-nacional,Campus a confirmar
-UFS,,,,,,https://www.ufsm.br/cursos/pos-graduacao/santa-maria/profgeo/profgeo-nacional,Campus a confirmar
-UFTM,,,,,,https://www.ufsm.br/cursos/pos-graduacao/santa-maria/profgeo/profgeo-nacional,Campus a confirmar
-UERJ,,,,,,https://www.ufsm.br/cursos/pos-graduacao/santa-maria/profgeo/profgeo-nacional,Campus a confirmar
-UERR,,,,,,https://www.ufsm.br/cursos/pos-graduacao/santa-maria/profgeo/profgeo-nacional,Campus a confirmar
-URCA,,,,,,https://www.ufsm.br/cursos/pos-graduacao/santa-maria/profgeo/profgeo-nacional,Campus a confirmar
-UFSM,,,,,,https://www.ufsm.br/cursos/pos-graduacao/santa-maria/profgeo/profgeo-nacional,Campus a confirmar
+"IFB","Riacho Fundo","Brasília","DF","-15.775903","-47.779631","https://www.ifb.edu.br/riachofundo/48346-ena-profgeo-ifb-2026-inscricoes-abertas","Campus confirmado; ponto representativo municipal"
+"IFC","Brusque","Brusque","SC","-27.127029","-48.890943","https://www.dpg.unb.br/images/Editais/ciencias_humanas_e_sociais/ensino_de_geografia/EDIT_INGRE_NACIO_PROFGEO_turma_2025_retificado.pdf","Campus confirmado; ponto representativo municipal"
+"IFMG","Ouro Preto","Ouro Preto","MG","-20.396627","-43.701878","https://profgeo.ouropreto.ifmg.edu.br","Campus/município confirmado; ponto municipal"
+"IFPR","Jaguariaíva","Jaguariaíva","PR","-24.34028","-49.784217","https://ifpr.edu.br/jaguariaiva/pos-graduacao/mestrado-profissional-em-ensino-de-geografia/","Campus confirmado; ponto municipal"
+"IFRO","Cacoal","Cacoal","RO","-11.31733","-61.251007","https://www.dpg.unb.br/images/Editais/ciencias_humanas_e_sociais/ensino_de_geografia/EDIT_INGRE_NACIO_PROFGEO_turma_2025_retificado.pdf","Município no edital; campus específico a confirmar"
+"UnB","A confirmar","Brasília","DF","-15.775903","-47.779631","https://www.dpg.unb.br/images/Editais/ciencias_humanas_e_sociais/ensino_de_geografia/EDIT_INGRE_NACIO_PROFGEO_turma_2025_retificado.pdf","Município confirmado; campus específico a confirmar"
+"UPE","Petrolina (nucleado com Mata Norte e Garanhuns)","Petrolina","PE","-9.052989","-40.518769","https://upe.br/upe-mestradogeografia/","Campus de coordenação confirmado; outras duas unidades requerem georreferenciamento próprio"
+"UFCG","Campina Grande","Campina Grande","PB","-7.270898","-35.950664","https://www.dpg.unb.br/images/Editais/ciencias_humanas_e_sociais/ensino_de_geografia/EDIT_INGRE_NACIO_PROFGEO_turma_2025_retificado.pdf","Município confirmado; ponto municipal"
+"UFGD","Dourados","Dourados","MS","-22.160275","-54.53468","https://www.dpg.unb.br/images/Editais/ciencias_humanas_e_sociais/ensino_de_geografia/EDIT_INGRE_NACIO_PROFGEO_turma_2025_retificado.pdf","Município confirmado; ponto municipal"
+"UFMA","Bacanga","São Luís","MA","-2.636265","-44.272003","https://portalpadrao.ufma.br/ageufma/noticias/noticias-gerais/ufma-abre-inscricoes-para-o-mestrado-profissional-em-ensino-de-geografia/","Campus confirmado; ponto municipal"
+"UFPA","Ananindeua","Ananindeua","PA","-1.343255","-48.391217","https://ufpa.br/orgaos/programa-de-pos-graduacao-em-ensino-de-geografia-em-rede/","Campus confirmado; ponto municipal"
+"UFPE","A confirmar","Recife","PE","-8.042073","-34.928219","https://www.dpg.unb.br/images/Editais/ciencias_humanas_e_sociais/ensino_de_geografia/EDIT_INGRE_NACIO_PROFGEO_turma_2025_retificado.pdf","Município confirmado; campus específico a confirmar"
+"UFS","Professor Alberto Carvalho (local do ENA)","Itabaiana","SE","-10.698709","-37.403723","https://www.sigaa.ufs.br/sigaa/public/programa/portal.jsf?id=1287&lc=pt_BR","Local de exame confirmado; local regular das aulas a confirmar"
+"UFTM","A confirmar","Uberaba","MG","-19.604323","-47.885464","https://www.ufsm.br/cursos/pos-graduacao/santa-maria/profgeo/profgeo-nacional","Município da instituição; campus PROFGEO a confirmar"
+"UERJ","A confirmar","Rio de Janeiro","RJ","-22.938202","-43.464756","https://www.dpg.unb.br/images/Editais/ciencias_humanas_e_sociais/ensino_de_geografia/EDIT_INGRE_NACIO_PROFGEO_turma_2025_retificado.pdf","Município confirmado; campus específico a confirmar"
+"UERR","A confirmar","Boa Vista","RR","3.01752","-60.744283","https://www.dpg.unb.br/images/Editais/ciencias_humanas_e_sociais/ensino_de_geografia/EDIT_INGRE_NACIO_PROFGEO_turma_2025_retificado.pdf","Município confirmado; campus específico a confirmar"
+"URCA","Crato","Crato","CE","-7.288703","-39.482259","https://www.urca.br/profgeo/apresentacao/","Município confirmado; ponto municipal"
+"UFSM","Santa Maria","Santa Maria","RS","-29.777573","-53.770296","https://www.ufsm.br/cursos/pos-graduacao/santa-maria/profgeo/profgeo-nacional","Município confirmado; ponto municipal"
