@@ -1,6 +1,7 @@
 """PROFGEO Expansão — interface cartográfica simplificada."""
 import math
 import json
+from io import BytesIO
 import unicodedata
 from pathlib import Path
 import pandas as pd
@@ -21,7 +22,32 @@ def ler_sedes():
 
 @st.cache_data
 def ler_pilotos():
-    return pd.read_csv("candidaturas_piloto.csv", keep_default_na=False)
+    return pd.read_csv("candidatos_exemplo.csv", dtype={"codigo_ibge": str}, keep_default_na=False)
+
+def ler_candidaturas_enviadas(arquivo):
+    if arquivo is None:
+        return ler_pilotos().copy()
+    if arquivo.name.lower().endswith(".xlsx"):
+        return pd.read_excel(arquivo, dtype={"codigo_ibge": str}, keep_default_na=False, engine="openpyxl")
+    return pd.read_csv(arquivo, dtype={"codigo_ibge": str}, keep_default_na=False)
+
+def montar_planilha_excel(df, nome_aba):
+    memoria = BytesIO()
+    with pd.ExcelWriter(memoria, engine="openpyxl") as writer:
+        df.to_excel(writer, sheet_name=nome_aba, index=False)
+        ws = writer.sheets[nome_aba]
+        ws.freeze_panes = "A2"
+        ws.auto_filter.ref = ws.dimensions
+        from openpyxl.styles import PatternFill, Font, Alignment
+        for celula in ws[1]:
+            celula.fill = PatternFill("solid", fgColor="173B5F")
+            celula.font = Font(color="FFFFFF", bold=True)
+            celula.alignment = Alignment(wrap_text=True)
+        for coluna in ws.columns:
+            letra = coluna[0].column_letter
+            maior = max(len(str(celula.value or "")) for celula in coluna)
+            ws.column_dimensions[letra].width = min(max(maior+2, 13), 52)
+    return memoria.getvalue()
 
 def normalizar_sedes(df):
     df = df.copy()
@@ -189,13 +215,13 @@ for coluna, (cor, nivel, distancia) in zip(colunas_legenda, legenda):
         )
 st.caption("● Azul: polo atual | ● Vermelho com contorno preto: candidatura (passe o cursor). As cores representam somente a lacuna de proximidade; não determinam prioridade institucional, elegibilidade ou decisão da comissão.")
 
-with st.form("controles_expansao"):
-    arq_candidatos = st.file_uploader("Carregar candidaturas (CSV)", type="csv")
+st.download_button("Baixar modelo com seis localidades (Excel XLSX)",\n                   montar_planilha_excel(ler_pilotos(), "Candidaturas"),\n                   "candidaturas_simulacao_6.xlsx",\n                   mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")\n\nwith st.form("controles_expansao"):
+    arq_candidatos = st.file_uploader("Carregar candidaturas (Excel XLSX ou CSV)", type=["xlsx", "csv"])
     calcular = st.form_submit_button("Calcular expansão", type="primary", use_container_width=True)
 
 if calcular:
     try:
-        candidatos = normalizar_candidatos(pd.read_csv(arq_candidatos, keep_default_na=False) if arq_candidatos else ler_pilotos())
+        candidatos = normalizar_candidatos(ler_candidaturas_enviadas(arq_candidatos))
         resultado = ordenar_cenarios(anexar_regic(avaliar(candidatos, sedes_padrao)))
         st.session_state["resultado_expansao"] = resultado
         st.session_state["versao_mapa"] = st.session_state.get("versao_mapa", 0) + 1
@@ -245,8 +271,8 @@ if resultados is not None and not resultados.empty:
     )
     st.caption("As cores representam exclusivamente a lacuna de proximidade à rede. A REGIC reorganiza candidaturas dentro da mesma faixa; cursos, matrículas e análise da comissão ainda não entram neste ranking.")
     with st.expander("Exportação e dados técnicos", expanded=False):
-        st.download_button("Baixar resultados completos (CSV)",
+        st.download_button("Baixar ranking completo (Excel XLSX)",\n                           montar_planilha_excel(tabela.drop(columns=["Posição", "Instituição / campus", "Município / UF", "Prioridade territorial", "REGIC 2018", "Mudança com REGIC"], errors="ignore"), "Ranking"),\n                           "ranking_expansao_profgeo.xlsx",\n                           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")\n        st.download_button("Baixar resultados completos (CSV)",
                            resultados.to_csv(index=False).encode("utf-8-sig"),
                            "diagnostico_expansao_profgeo.csv", mime="text/csv")
 else:
-    st.caption("Carregue candidaturas ou utilize os dois casos-piloto incluídos; clique em Calcular expansão para exibir o ranking.")
+    st.caption("Carregue uma planilha XLSX/CSV ou utilize as seis localidades demonstrativas; clique em Calcular expansão para exibir o ranking.")
