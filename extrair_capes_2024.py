@@ -81,7 +81,7 @@ def extrair_api_capes():
             endpoint,
             params={"resource_id": recurso, "limit": 1000, "offset": offset},
             headers={"User-Agent": "PROFGEO-academic-validation/1.0"},
-            timeout=(15, 70),
+            timeout=(15, 35),
         )
         resposta.raise_for_status()
         payload = resposta.json()
@@ -112,11 +112,11 @@ def extrair_api_capes():
 def baixar_fonte():
     """Tenta XLSX e, em caso de falha, CSV da mesma fonte CAPES oficial."""
     falhas = []
-    for url, extensao in ((URL, "xlsx"), (URL_CSV, "csv")):
+    for url, extensao in ((URL_CSV, "csv"), (URL, "xlsx")):
         destino = BASE / ("capes_cursos_2024_fonte." + extensao)
-        for tentativa in range(1, 4):
+        for tentativa in range(1, 3):
             try:
-                with requests.get(url, stream=True, timeout=(20, 90), headers={"User-Agent": "Mozilla/5.0", "Accept-Encoding": "identity"}) as resposta:
+                with requests.get(url, stream=True, timeout=(15, 35), headers={"User-Agent": "Mozilla/5.0", "Accept-Encoding": "identity"}) as resposta:
                     resposta.raise_for_status()
                     with destino.open("wb") as saida:
                         for bloco in resposta.iter_content(chunk_size=65536):
