@@ -248,7 +248,7 @@ if resultados is not None and not resultados.empty:
     else:
         tabela = tabela.sort_values("distancia_km", ascending=False, kind="stable")
         tabela["Posição"] = range(1, len(tabela) + 1)
-        st.warning("Ranking provisório apenas por distância: há registros REGIC ausentes ou ainda não validados.")
+        st.info("Ranking provisório")
     tabela["Instituição / campus"] = tabela["instituicao"].astype(str) + " — " + tabela["campus"].astype(str)
     tabela["Município / UF"] = tabela["municipio"].astype(str) + " / " + tabela["uf"].astype(str)
     tabela["Prioridade territorial"] = tabela["distancia_km"].apply(
