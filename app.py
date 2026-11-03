@@ -271,7 +271,7 @@ if resultados is not None and not resultados.empty:
     )
     st.caption("As cores representam exclusivamente a lacuna de proximidade à rede. A REGIC reorganiza candidaturas dentro da mesma faixa; cursos, matrículas e análise da comissão ainda não entram neste ranking.")
     with st.expander("Exportação e dados técnicos", expanded=False):
-        st.download_button("Baixar ranking completo (Excel XLSX)",\n                           montar_planilha_excel(tabela.drop(columns=["Posição", "Instituição / campus", "Município / UF", "Prioridade territorial", "REGIC 2018", "Mudança com REGIC"], errors="ignore"), "Ranking"),\n                           "ranking_expansao_profgeo.xlsx",\n                           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")\n        st.download_button("Baixar resultados completos (CSV)",
+        st.download_button("Baixar ranking completo (Excel XLSX)",\n                           montar_planilha_excel(quadro, "Ranking"),\n                           "ranking_expansao_profgeo.xlsx",\n                           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")\n        st.download_button("Baixar resultados completos (CSV)",
                            resultados.to_csv(index=False).encode("utf-8-sig"),
                            "diagnostico_expansao_profgeo.csv", mime="text/csv")
 else:
