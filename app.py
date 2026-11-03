@@ -1,5 +1,7 @@
 """PROFGEO Expansão — interface cartográfica simplificada."""
 import math
+import json
+from pathlib import Path
 import pandas as pd
 import pydeck as pdk
 import streamlit as st
@@ -61,10 +63,21 @@ def aneis(lat, lon, raio_km, passos=48):
 
 def montar_mapa(sedes, resultados):
     layers = []
-    # Faixas concêntricas: representação visual aproximada da distância à rede.
-    for km, cor in ((300,[221,120,70,38]), (200,[245,177,73,48]), (100,[51,157,111,64])):
-        poligonos = [{"polygon": aneis(r.lat, r.lon, km)} for r in sedes.itertuples()]
-        layers.append(pdk.Layer("PolygonLayer", data=poligonos, get_polygon="polygon", get_fill_color=cor, stroked=False, pickable=False))
+    malha = Path("municipios_profgeo_2022.geojson")
+    if malha.exists():
+        dados = json.loads(malha.read_text(encoding="utf-8"))
+        cores = {"Até 100 km": [38,136,94,185], "100–200 km": [119,185,84,185], "200–300 km": [245,171,64,185], "Mais de 300 km": [197,65,62,185]}
+        for feicao in dados.get("features", []):
+            props = feicao.setdefault("properties", {})
+            props["cor"] = cores.get(props.get("faixa"), [140,140,140,100])
+            props["identificacao"] = props.get("municipio", "Município")
+            props["detalhe"] = str(props.get("distancia_km", "?")) + " km | " + str(props.get("faixa", ""))
+        layers.append(pdk.Layer("GeoJsonLayer", data=dados, filled=True, stroked=False, get_fill_color="properties.cor", pickable=True))
+    else:
+        # Visualização substituta enquanto a malha municipal processada não estiver no repositório.
+        for km, cor in ((300,[221,120,70,38]), (200,[245,177,73,48]), (100,[51,157,111,64])):
+            poligonos = [{"polygon": aneis(r.lat, r.lon, km)} for r in sedes.itertuples()]
+            layers.append(pdk.Layer("PolygonLayer", data=poligonos, get_polygon="polygon", get_fill_color=cor, stroked=False, pickable=False))
     sedes = sedes.copy()
     sedes["identificacao"] = sedes["polo"]
     sedes["detalhe"] = "Polo PROFGEO existente"
@@ -81,7 +94,7 @@ sedes_padrao = normalizar_sedes(ler_sedes())
 sedes = sedes_padrao
 resultados = st.session_state.get("resultado_expansao")
 st.pydeck_chart(montar_mapa(sedes, resultados), use_container_width=True)
-st.caption("Azul: sedes atuais | ★: candidaturas calculadas | Verde: até 100 km | Amarelo: até 200 km | Laranja: até 300 km | Fora das áreas: acima de 300 km. Os polígonos são círculos geodésicos aproximados, não um mapa coroplético municipal. Sobreposições alteram a intensidade visual.")
+st.caption("Azul: sedes atuais | ★: candidaturas calculadas | Verde: até 100 km | Verde-claro: 100–200 km | Amarelo: 200–300 km | Vermelho: mais de 300 km. Sem o GeoJSON municipal processado, o mapa usa círculos de cobertura provisórios.")
 
 with st.form("controles_expansao"):
     arq_candidatos = st.file_uploader("Carregar candidaturas (CSV)", type="csv")
