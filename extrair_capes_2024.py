@@ -111,6 +111,12 @@ def extrair_api_capes():
 
 def baixar_fonte():
     """Tenta XLSX e, em caso de falha, CSV da mesma fonte CAPES oficial."""
+    local = BASE / "capes_cursos_2024_fonte.xlsx"
+    if local.exists() and local.stat().st_size > 10000:
+        if not zipfile.is_zipfile(local):
+            raise ValueError("Planilha CAPES local XLSX invalida")
+        print("CAPES: fonte local fornecida pelo usuario; sem acesso externo.", flush=True)
+        return local
     falhas = []
     for url, extensao in ((URL_CSV, "csv"), (URL, "xlsx")):
         destino = BASE / ("capes_cursos_2024_fonte." + extensao)
