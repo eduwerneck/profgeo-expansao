@@ -1,0 +1,23 @@
+name: Otimizar mapa municipal
+on:
+  workflow_dispatch:
+jobs:
+  otimizar:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Instalar biblioteca geoespacial
+        run: pip install shapely
+      - name: Gerar GeoJSON leve a partir do original
+        run: python otimizar_malha.py
+      - name: Publicar mapa leve
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@users.noreply.github.com
+          git add municipios_profgeo_2022_leve.geojson
+          git diff --cached --quiet || (git commit -m "Publicar malha leve para carregamento rapido" && git push)
