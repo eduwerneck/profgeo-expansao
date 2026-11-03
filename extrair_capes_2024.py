@@ -69,6 +69,46 @@ def extrair(caminho):
     rec["status_linha_ensino"]="Não verificada nesta base (exige linhas de pesquisa)"
     return rec
 
+def extrair_api_capes():
+    """Terceira via: API oficial CKAN Datastore (dados de 2024)."""
+    import requests
+    endpoint = "https://dadosabertos.capes.gov.br/api/3/action/datastore_search"
+    recurso = "4939da83-fe0f-41f7-b4aa-f9b6c2a28981"
+    registros = []
+    offset = 0
+    while True:
+        resposta = requests.get(
+            endpoint,
+            params={"resource_id": recurso, "limit": 1000, "offset": offset},
+            headers={"User-Agent": "PROFGEO-academic-validation/1.0"},
+            timeout=(15, 70),
+        )
+        resposta.raise_for_status()
+        payload = resposta.json()
+        if not payload.get("success"):
+            raise RuntimeError("CKAN retornou success=false")
+        lote = payload["result"].get("records", [])
+        if not lote:
+            break
+        registros.extend(lote)
+        offset += len(lote)
+        total = payload["result"].get("total", 0)
+        print(f"CAPES CKAN: {offset}/{total} registros", flush=True)
+        if total and offset >= total:
+            break
+        if offset > 20000:
+            raise ValueError("API CAPES retornou mais de 20 mil cursos: verificar recurso")
+    if not registros:
+        raise RuntimeError("API CAPES retornou zero registros")
+    tabela = pd.DataFrame(registros).drop(columns=["_id"], errors="ignore")
+    tabela.columns = [str(col).strip().upper() for col in tabela.columns]
+    exigidas = {"NM_AREA_CONHECIMENTO", "NM_MUNICIPIO_PROGRAMA_IES", "SG_ENTIDADE_ENSINO"}
+    if not exigidas.issubset(tabela.columns):
+        raise ValueError(f"API CAPES sem campos obrigatorios: {sorted(exigidas - set(tabela.columns))}")
+    caminho = BASE / "capes_cursos_2024_fonte_api.csv"
+    tabela.to_csv(caminho, index=False, encoding="utf-8-sig")
+    return caminho
+
 def baixar_fonte():
     """Tenta XLSX e, em caso de falha, CSV da mesma fonte CAPES oficial."""
     falhas = []
@@ -92,7 +132,11 @@ def baixar_fonte():
                 falhas.append(f"{extensao} tentativa {tentativa}: {type(erro).__name__}: {erro}")
                 destino.unlink(missing_ok=True)
                 time.sleep(tentativa * 2)
-    raise RuntimeError("Download CAPES falhou: " + " | ".join(falhas))
+    try:
+        return extrair_api_capes()
+    except Exception as exc:
+        falhas.append("CKAN API: " + repr(exc))
+    raise RuntimeError("Fontes CAPES indisponiveis: " + " | ".join(falhas))
 
 def main():
     arquivo = baixar_fonte()
