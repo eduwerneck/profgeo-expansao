@@ -1,3 +1,7 @@
-instituicao,campus,municipio,uf,lat,lon,tipo,regic_hierarquia,regic_regiao_influencia,observacoes
-UNESP,Presidente Prudente,Presidente Prudente,SP,-22.1225167,-51.3882528,,,,Coordenada municipal provisoria; mestrado em Geografia a validar por campus
-UFMT,Araguaia - Unidade II,Barra do Garças,MT,-15.89,-52.26,,,,Coordenada municipal provisoria; mestrado em Geografia ainda nao confirmado
+instituicao,campus,municipio,uf,codigo_ibge,lat,lon,tipo,regic_hierarquia,regic_regiao_influencia,observacoes
+UEL,Londrina,Londrina,PR,4113700,-23.391667,-51.191667,,,,Localidade candidata UEL; ponto da sede municipal aproximado; categoria academica pendente
+Simulação Montes Claros,Localidade de teste,Montes Claros,MG,3143302,-16.728056,-43.865,,,,Simulacao territorial sem instituicao candidata definida
+Simulação Belo Horizonte,Localidade de teste,Belo Horizonte,MG,3106200,-19.9237,-43.9363,,,,Simulacao territorial sem instituicao candidata definida
+Simulação Vitória da Conquista,Localidade de teste,Vitória da Conquista,BA,2933307,-14.866,-40.839,,,,Simulacao territorial sem instituicao candidata definida
+UNESP,Presidente Prudente,Presidente Prudente,SP,3541406,-22.1225167,-51.3882528,,,,Candidatura piloto; ponto da sede municipal aproximado
+UFMT,Araguaia - Unidade II,Barra do Garças,MT,5101803,-15.89,-52.26,,,,Candidatura piloto; ponto da sede municipal aproximado
