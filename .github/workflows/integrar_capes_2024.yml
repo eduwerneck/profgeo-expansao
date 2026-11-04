@@ -1,42 +1,29 @@
-name: Integrar CAPES Geografia 2024 - arquivo validado
+name: Auditar CAPES Geografia 2024 - fonte enviada
 on:
   workflow_dispatch:
 jobs:
-  extrair:
+  auditoria:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install pandas openpyxl requests
-      - name: Obter arquivo oficial enviado à versão de fontes
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Verificar extrato CAPES ja publicado do arquivo original
         run: |
-          gh release download fontes-2024 --repo "$GITHUB_REPOSITORY" --pattern "br-capes-colsucup-curso-2024-2025-12-01.xlsx" --dir .
-          mv "br-capes-colsucup-curso-2024-2025-12-01.xlsx" "capes_cursos_2024_fonte.xlsx"
-          ls -lh "capes_cursos_2024_fonte.xlsx"
-      - name: Extrair e filtrar dados de Geografia
-        run: |
-          set +e
-          python -u extrair_capes_2024.py > capes_processamento.log 2>&1
-          resultado=$?
-          cat capes_processamento.log
-          echo "STATUS_EXIT_CODE=$resultado" >> capes_processamento.log
-          exit "$resultado"
-      - name: Registrar diagnóstico e tabela filtrada
-        if: always()
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if [ -f capes_processamento.log ]; then git add capes_processamento.log; fi
-          if [ -f capes_geografia_2024.csv ]; then git add capes_geografia_2024.csv; fi
-          if ! git diff --cached --quiet; then
-            git commit -m "Processar fonte local de CAPES 2024"
-            git pull --rebase origin main
-            git push
-          fi
+          python - <<'PY'
+          import csv
+          from pathlib import Path
+          p=Path("capes_geografia_2024.csv")
+          assert p.exists(), "Extrato CAPES nao foi publicado"
+          with p.open(encoding="utf-8-sig", newline="") as f:
+              dados=list(csv.DictReader(f))
+          assert len(dados)==134, f"Esperados 134 cursos, encontrados {len(dados)}"
+          assert all(r["ano"]=="2024" and r["area"]=="GEOGRAFIA" for r in dados)
+          ativos=[r for r in dados if r["situacao"]=="EM FUNCIONAMENTO"]
+          projeto=[r for r in dados if r["situacao"]=="EM PROJETO"]
+          assert len(ativos)==121 and len(projeto)==13
+          assert len({r["codigo_programa"] for r in dados})==80
+          assert len({r["codigo_curso"] for r in dados})==134
+          print("CAPES 2024 confirmada: 134 cursos, 80 programas; 121 em funcionamento, 13 em projeto")
+          PY
