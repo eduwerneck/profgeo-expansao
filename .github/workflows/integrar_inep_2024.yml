@@ -35,11 +35,13 @@ jobs:
       - name: Gerar indicadores de Geografia com município de oferta
         run: |
           python -u extrair_inep_2024.py --cursos MICRODADOS_CADASTRO_CURSOS_2024.CSV --ies inep_ies_2024.csv --saida inep_geografia_2024.csv | tee inep_processamento.log
+      - name: Cruzar INEP e CAPES nas seis localidades
+        run: python -u gerar_diagnostico_academico_2024.py
       - name: Registrar saída filtrada
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add inep_geografia_2024.csv inep_processamento.log
+          git add inep_geografia_2024.csv inep_processamento.log diagnostico_academico_seis_localidades_2024.csv
           if ! git diff --cached --quiet; then
             git commit -m "Integrar extrato INEP Geografia 2024 da fonte original Drive"
             git pull --rebase origin main
