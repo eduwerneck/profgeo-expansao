@@ -291,3 +291,94 @@ if resultados is not None and not resultados.empty:
                            "diagnostico_expansao_profgeo.csv", mime="text/csv")
 else:
     st.caption("Carregue uma planilha XLSX/CSV ou utilize as seis localidades demonstrativas; clique em Calcular expansão para exibir o ranking.")
+
+
+# Painel nacional A-D: independente da simulação de candidaturas acima.
+st.divider()
+st.header("Matriz nacional — classificação operacional A–D (2026)")
+st.caption(
+    "A/B reproduzem indícios acadêmicos; C identifica registros de Institutos Federais "
+    "multicampi; D descreve outras configurações que requerem análise específica. "
+    "Essas letras não comprovam elegibilidade nem candidatura formal."
+)
+st.info(
+    "O levantamento original contém 222 combinações IES–município com graduação "
+    "presencial em Geografia. Campi sem essa graduação, como IFC Brusque, podem "
+    "estar fora do universo. O município da oferta INEP não é automaticamente o "
+    "campus-sede de uma futura candidatura."
+)
+fonte_nacional = st.file_uploader(
+    "Importar a aba 'Classificação A-D app 2026' como CSV ou Excel",
+    type=["csv", "xlsx"], key="fonte_nacional_ad"
+)
+if fonte_nacional is not None:
+    try:
+        if fonte_nacional.name.lower().endswith(".xlsx"):
+            base_nacional = pd.read_excel(fonte_nacional, dtype=str, keep_default_na=False)
+        else:
+            base_nacional = pd.read_csv(
+                fonte_nacional, dtype=str, keep_default_na=False, encoding="utf-8-sig"
+            )
+        obrigatorias = {"instituicao", "municipio_nome_IBGE", "UF", "grupo_estrutural"}
+        if not obrigatorias.issubset(base_nacional.columns):
+            raise ValueError(
+                "Colunas ausentes: " + ", ".join(sorted(obrigatorias - set(base_nacional.columns)))
+            )
+        nacional = base_nacional.copy()
+        # Compatibilidade com o CSV original, sem modificar os resultados históricos.
+        if "grupo_operacional_app" not in nacional:
+            eh_if = nacional["instituicao"].str.upper().str.startswith("INSTITUTO FEDERAL DE EDUCAÇÃO")
+            nacional["grupo_operacional_app"] = nacional["grupo_estrutural"].where(
+                nacional["grupo_estrutural"].isin(["A", "B"]), "D"
+            )
+            nacional.loc[eh_if, "grupo_operacional_app"] = "C"
+        if "status_validacao_institucional" not in nacional:
+            nacional["status_validacao_institucional"] = "Não verificada"
+        if "campus_sede_proposto" not in nacional:
+            nacional["campus_sede_proposto"] = ""
+        if "municipio_sede_proposto" not in nacional:
+            nacional["municipio_sede_proposto"] = ""
+        contagens = nacional["grupo_operacional_app"].value_counts()
+        a, b, c, d = st.columns(4)
+        for painel, grupo in zip((a, b, c, d), ("A", "B", "C", "D")):
+            painel.metric("Grupo " + grupo, int(contagens.get(grupo, 0)))
+        if nacional["grupo_operacional_app"].isin(["A", "B", "C", "D"]).all():
+            st.success("Todos os registros importados possuem classificação operacional.")
+        else:
+            st.warning("Há códigos fora de A–D; confira a fonte antes de usar o ranking.")
+        if "rede_PROFGEO_2026_IES_associada" in nacional:
+            somente_fora = st.checkbox(
+                "Exibir apenas instituições fora da rede atual", value=False,
+                key="filtro_fora_rede_nacional"
+            )
+            if somente_fora:
+                nacional = nacional[
+                    nacional["rede_PROFGEO_2026_IES_associada"].astype(str).str.lower().eq("false")
+                ]
+        grupos_filtro = st.multiselect(
+            "Grupos operacionais", ["A", "B", "C", "D"],
+            default=["A", "B", "C", "D"], key="grupos_ad"
+        )
+        nacional = nacional[nacional["grupo_operacional_app"].isin(grupos_filtro)]
+        exibicao = [
+            "instituicao", "municipio_nome_IBGE", "UF", "grupo_estrutural",
+            "grupo_operacional_app", "status_validacao_institucional",
+            "campus_sede_proposto", "municipio_sede_proposto",
+            "rede_PROFGEO_2026_IES_associada", "dist_polo_km",
+            "REGIC_2018"
+        ]
+        st.dataframe(nacional[[c for c in exibicao if c in nacional]],
+                     hide_index=True, use_container_width=True)
+        st.download_button(
+            "Baixar seleção nacional (CSV)",
+            nacional.to_csv(index=False).encode("utf-8-sig"),
+            "profgeo_matriz_nacional_ad_2026.csv", mime="text/csv",
+            key="download_nacional_ad"
+        )
+        st.caption(
+            "Distância original: município de oferta do INEP ao polo mais próximo. "
+            "Ao definir outro campus-sede, será necessário geocodificar esse campus "
+            "e recalcular a distância. Validação institucional permanece independente."
+        )
+    except Exception as exc:
+        st.error(f"Não foi possível ler a matriz nacional: {exc}")
