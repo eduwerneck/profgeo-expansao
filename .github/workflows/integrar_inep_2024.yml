@@ -1,10 +1,9 @@
 name: Integrar INEP Geografia 2024 - Drive fornecido
+# Processamento automático suspenso: o CSV INEP já foi enviado pelo usuário,
+# mas sua transferência de 453 MB via gdown ao runner falhou.
+# Não executar por push nem interpretar falhas de transferência como falhas de dados.
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - "extrair_inep_2024.py"
-      - ".github/workflows/integrar_inep_2024.yml"
 jobs:
   extrair:
     runs-on: ubuntu-latest
