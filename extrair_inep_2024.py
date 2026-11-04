@@ -1,161 +1,123 @@
-"""Filtra cursos de graduação em Geografia nos microdados oficiais INEP 2024.
+"""Extrai cursos de Geografia dos CSVs oficiais do INEP 2024 já fornecidos.
 
-Saída apenas acadêmica, sem atribuir categorias A/B; preserva o código IES,
-código municipal, modalidade, grau, matrículas e rastreabilidade.
-Usa processamento em blocos e não publica o ZIP de centenas de MB.
+Sem downloads externos. Entrada principal: dados/MICRODADOS_CADASTRO_CURSOS_2024.CSV.
+Correspondência de IES: inep_ies_2024.csv (cadastro oficial já reduzido).
+Unidade espacial: CO_MUNICIPIO (local de oferta), não CO_MUNICIPIO_IES.
 """
-import csv
-import os
+import argparse
 import re
-import time
 import unicodedata
-import urllib.request
-import zipfile
 from pathlib import Path
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parent
-URL = "https://download.inep.gov.br/microdados/microdados_censo_da_educacao_superior_2024.zip"
-ARQ = ROOT / "inep_censo_superior_2024_fonte.zip"
-SAIDA = ROOT / "inep_geografia_2024.csv"
+DEFAULT_CURSOS = ROOT / "MICRODADOS_CADASTRO_CURSOS_2024.CSV"
+DEFAULT_IES = ROOT / "inep_ies_2024.csv"
+DEFAULT_OUT = ROOT / "inep_geografia_2024.csv"
 
 def norm(value):
-    return "".join(ch for ch in unicodedata.normalize("NFKD",str(value or "").upper())
-                   if not unicodedata.combining(ch)).strip()
+    return "".join(c for c in unicodedata.normalize("NFKD", str(value or "").upper())
+                   if not unicodedata.combining(c)).strip()
 
-def escolher_coluna(colunas,*possibilidades):
-    mapa={norm(c):c for c in colunas}
-    for c in possibilidades:
-        if norm(c) in mapa:return mapa[norm(c)]
+def required(cols, *names):
+    for name in names:
+        if name in cols:
+            return name
+    raise ValueError("Faltam colunas obrigatorias (uma entre): " + ", ".join(names))
+
+def optional(cols, *names):
+    for name in names:
+        if name in cols:
+            return name
     return None
 
-def baixar():
-    """Usa certificados válidos; preserva ZIP local fornecido pelo usuário."""
-    import requests
-    import certifi
-    if ARQ.exists() and ARQ.stat().st_size > 1000000:
-        if not zipfile.is_zipfile(ARQ):
-            raise ValueError("O ZIP local do INEP está corrompido")
-        print('Fonte INEP local validada; download dispensado.', flush=True)
-        return
-    url = os.environ.get("INEP_2024_URL", URL)
-    erros = []
-    for tentativa in range(1, 5):
-        try:
-            with requests.get(url, stream=True, timeout=(25, 150),
-                              headers={"User-Agent": "Mozilla/5.0",
-                                       "Accept-Encoding": "identity"},
-                              verify=certifi.where()) as resposta:
-                resposta.raise_for_status()
-                with ARQ.open("wb") as arq:
-                    for bloco in resposta.iter_content(chunk_size=1024*1024):
-                        if bloco:
-                            arq.write(bloco)
-            if ARQ.stat().st_size < 1000000 or not zipfile.is_zipfile(ARQ):
-                raise ValueError("ZIP INEP invalido ou incompleto")
-            print(f'INEP: fonte oficial recebida ({ARQ.stat().st_size} bytes).', flush=True)
-            return
-        except Exception as exc:
-            erros.append(f'{tentativa}: {type(exc).__name__}: {exc}')
-            ARQ.unlink(missing_ok=True)
-            print('Falha download INEP: ' + erros[-1], flush=True)
-            time.sleep(min(3*tentativa,12))
-    raise RuntimeError("INEP indisponivel com SSL verificado: " + " | ".join(erros))
+def convert(chunk, columns, names):
+    curso = required(columns, "NO_CURSO")
+    ies = required(columns, "CO_IES")
+    codigo = required(columns, "CO_CURSO")
+    local = required(columns, "CO_MUNICIPIO")
+    modalidade = required(columns, "TP_MODALIDADE_ENSINO")
+    grau = optional(columns, "TP_GRAU_ACADEMICO")
+    matr = required(columns, "QT_MAT")
+    uf = optional(columns, "CO_UF", "CO_UF_CURSO")
+    cine = optional(columns, "CO_CINE_ROTULO")
+    filtro = chunk[curso].fillna("").apply(norm).str.contains(r"\bGEOGRAFIA\b", regex=True)
+    subset = chunk.loc[filtro].copy()
+    if subset.empty:
+        return None
+    # Não converter campo ausente de matrícula em zero.
+    def values(field):
+        return subset[field].fillna("").astype(str) if field else pd.Series("", index=subset.index)
+    resultado = pd.DataFrame({
+        "codigo_ies": values(ies),
+        "codigo_curso": values(codigo),
+        "municipio_ibge": values(local),
+        "nome_curso": values(curso),
+        "modalidade_cod": values(modalidade),
+        "grau_cod": values(grau),
+        "matriculas": values(matr),
+        "uf_codigo": values(uf),
+        "cine_rotulo": values(cine),
+    })
+    resultado["codigo_ies"] = resultado["codigo_ies"].str.replace(r"\.0$", "", regex=True)
+    resultado["municipio_ibge"] = resultado["municipio_ibge"].str.replace(r"\.0$", "", regex=True)
+    resultado["codigo_curso"] = resultado["codigo_curso"].str.replace(r"\.0$", "", regex=True)
+    resultado["nome_ies"] = resultado["codigo_ies"].map(names).fillna("")
+    resultado["ano"] = "2024"
+    resultado["fonte"] = "INEP - Microdados Censo Educacao Superior 2024 - arquivo do usuario"
+    return resultado
 
-def analisar_csv(z, nome):
-    print("Lendo CSV:",nome,flush=True)
-    for encoding in ("latin1","utf-8-sig"):
-        for separador in (";", ","):
-            try:
-                with z.open(nome) as arq:
-                    import io
-                    f=io.TextIOWrapper(arq,encoding=encoding)
-                    cab=f.readline()
-                col=[x.strip().strip('"') for x in next(csv.reader([cab],delimiter=separador))]
-                if escolher_coluna(col,"NO_CURSO","NM_CURSO") and escolher_coluna(col,"CO_IES"):
-                    return encoding,separador,col
-            except (UnicodeError,UnicodeDecodeError):continue
-    return None
+def extrair(cursos, ies, output):
+    if not cursos.is_file():
+        raise FileNotFoundError("CSV de cursos INEP nao encontrado: " + str(cursos))
+    if not ies.is_file():
+        raise FileNotFoundError("Cadastro IES INEP nao encontrado: " + str(ies))
+    sedes = pd.read_csv(ies, sep=";", dtype=str, encoding="utf-8-sig").fillna("")
+    if not {"CO_IES", "NO_IES"}.issubset(sedes.columns):
+        raise ValueError("Cadastro IES sem CO_IES ou NO_IES")
+    sedes = sedes.drop_duplicates("CO_IES")
+    nomes = dict(zip(sedes["CO_IES"], sedes["NO_IES"]))
+    lidos = 0
+    resultados = []
+    # Microdados nacionais de 2024: CSV separado por ponto e vírgula.
+    for bloco in pd.read_csv(cursos, sep=";", encoding="latin1", dtype=str,
+                             chunksize=25000, low_memory=False, keep_default_na=False):
+        cols = list(bloco.columns)
+        if not lidos:
+            print("Colunas do CSV: " + " | ".join(cols), flush=True)
+        convertido = convert(bloco, cols, nomes)
+        if convertido is not None:
+            resultados.append(convertido)
+        lidos += len(bloco)
+        if lidos % 100000 == 0:
+            print(f"INEP processados {lidos:,} registros", flush=True)
+    if not resultados:
+        raise ValueError("Nenhum registro com Geografia: conferir CSV INEP e filtro")
+    result = pd.concat(resultados, ignore_index=True)
+    if result["codigo_curso"].eq("").any():
+        raise ValueError("Cursos de Geografia sem codigo de curso INEP")
+    if result["codigo_ies"].eq("").any():
+        raise ValueError("Cursos de Geografia sem codigo IES")
+    if result["nome_ies"].eq("").any():
+        raise ValueError("Uma ou mais IES de Geografia nao foram encontradas no cadastro")
+    # Não remover múltiplas linhas por campus/local de oferta nem duplicar matrículas.
+    keys = ["codigo_curso", "codigo_ies", "municipio_ibge"]
+    if result.duplicated(keys).any():
+        duplicados = result.loc[result.duplicated(keys, keep=False), keys]
+        raise ValueError("Registros de cursos duplicados; investigar: " +
+                         duplicados.head(8).to_json(orient="records"))
+    result.to_csv(output, index=False, encoding="utf-8-sig")
+    prec = result[result["modalidade_cod"].eq("1")]
+    total = pd.to_numeric(result["matriculas"].replace("", pd.NA), errors="coerce")
+    print(f"INEP: {lidos} registros lidos; {len(result)} cursos Geografia; "
+          f"{len(prec)} presenciais; {result['codigo_ies'].nunique()} IES; "
+          f"matriculas observadas={int(total.sum()) if total.notna().any() else 'NA'}", flush=True)
+    print(f"Arquivo filtrado: {output} ({output.stat().st_size} bytes)", flush=True)
 
-def main():
-    baixar()
-    with zipfile.ZipFile(ARQ) as z:
-        nomes=[n for n in z.namelist() if n.lower().endswith(".csv")]
-        print("Arquivos CSV no ZIP:",len(nomes),flush=True)
-        alvos=[n for n in nomes if "CURSO" in norm(n) and "DOCENTE" not in norm(n)]
-        candidatos=alvos or nomes
-        resultados=[]
-        lidos=0
-        for nome in candidatos:
-            config=analisar_csv(z,nome)
-            if not config:continue
-            encoding,sep,colunas=config
-            print("Colunas selecionadas:",colunas[:45],flush=True)
-            curso=escolher_coluna(colunas,"NO_CURSO","NM_CURSO")
-            ies=escolher_coluna(colunas,"CO_IES")
-            codmun=escolher_coluna(colunas,"CO_MUNICIPIO","CO_MUNICIPIO_CURSO")
-            modalidade=escolher_coluna(colunas,"TP_MODALIDADE_ENSINO")
-            grau=escolher_coluna(colunas,"TP_GRAU_ACADEMICO")
-            matr=escolher_coluna(colunas,"QT_MAT","QT_MATRICULA","QT_MATRICULAS")
-            uf=escolher_coluna(colunas,"SG_UF","NO_UF","CO_UF")
-            codigo=escolher_coluna(colunas,"CO_CURSO")
-            if not codmun:
-                raise ValueError("Microdados INEP sem código de município do curso; suspenso vínculo territorial")
-            with z.open(nome) as arq:
-                import io
-                f=io.TextIOWrapper(arq,encoding=encoding)
-                for chunk in pd.read_csv(f,sep=sep,dtype=str,low_memory=False,
-                                         chunksize=40000,on_bad_lines="skip"):
-                    lidos+=len(chunk)
-                    normcurso=chunk[curso].fillna("").apply(norm)
-                    subset=chunk[normcurso.str.contains(r"\bGEOGRAFIA\b",regex=True)].copy()
-                    if subset.empty:continue
-                    colmap={"codigo_ies":ies,"codigo_curso":codigo,"municipio_ibge":codmun,
-                            "nome_curso":curso,"modalidade_cod":modalidade,"grau_cod":grau,
-                            "matriculas":matr,"uf_codigo":uf}
-                    saida=pd.DataFrame({k:(subset[v].astype(str) if v else "")
-                                        for k,v in colmap.items()},index=subset.index)
-                    saida["ano"]="2024"
-                    saida["fonte"]="INEP — Censo da Educação Superior 2024"
-                    resultados.append(saida)
-        if not resultados:
-            raise ValueError("Nenhum curso de Geografia encontrado. Verificar nome e esquema do ZIP INEP.")
-        # A tabela de IES identifica o nome completo associado ao código CO_IES.
-        # O vínculo não é inferido pelo município da sede da universidade.
-        arquivos_ies=[n for n in nomes if ("IES_2024" in norm(n) or "CADASTRO_IES" in norm(n))]
-        nomes_ies={}
-        if not arquivos_ies:
-            raise ValueError("Arquivo de instituições IES não localizado no pacote oficial INEP")
-        for ies_nome in arquivos_ies:
-            with z.open(ies_nome) as raw:
-                import io
-                fonte=io.TextIOWrapper(raw,encoding="latin1")
-                dados_ies=pd.read_csv(fonte,sep=";",dtype=str,low_memory=False)
-            dados_ies.columns=[str(x).strip() for x in dados_ies.columns]
-            cod=escolher_coluna(dados_ies.columns,"CO_IES")
-            nome=escolher_coluna(dados_ies.columns,"NO_IES")
-            if cod and nome:
-                nomes_ies=dict(zip(dados_ies[cod].astype(str), dados_ies[nome].astype(str)))
-                break
-        if not nomes_ies:
-            raise ValueError("Não foi possível vincular os códigos de IES aos nomes oficiais INEP")
-        resultado=pd.concat(resultados,ignore_index=True)
-        resultado=resultado.drop_duplicates(subset=["codigo_ies","codigo_curso","municipio_ibge"])
-        resultado.insert(1,"nome_ies",resultado["codigo_ies"].map(nomes_ies).fillna(""))
-        # Retém apenas colunas observadas. Ausência de matrícula não equivale a zero.
-        if not resultado["municipio_ibge"].astype(str).str.fullmatch(r"\d{7}").all():
-            print("AVISO: existem códigos municipais não padronizados; conferir georreferenciamento.",flush=True)
-        resultado.to_csv(SAIDA,index=False,encoding="utf-8-sig")
-        print(f"Processadas {lidos} linhas; {len(resultado)} registros Geografia; "
-              f"{resultado.codigo_ies.nunique()} códigos IES; "
-              f"{resultado.municipio_ibge.nunique()} códigos municipais.",flush=True)
-        exemplos={"4113700":"Londrina","3143302":"Montes Claros",
-                  "3106200":"Belo Horizonte","2933307":"Vitória da Conquista",
-                  "3541406":"Presidente Prudente","5101803":"Barra do Garças"}
-        for cod,mun in exemplos.items():
-            sub=resultado[resultado["municipio_ibge"].eq(cod)]
-            print(f"{mun} ({cod}): {len(sub)} curso(s), {sub.codigo_ies.nunique()} IES",flush=True)
-    ARQ.unlink(missing_ok=True)
-
-if __name__=="__main__":
-    main()
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--cursos", type=Path, default=DEFAULT_CURSOS)
+    parser.add_argument("--ies", type=Path, default=DEFAULT_IES)
+    parser.add_argument("--saida", type=Path, default=DEFAULT_OUT)
+    options = parser.parse_args()
+    extrair(options.cursos, options.ies, options.saida)
