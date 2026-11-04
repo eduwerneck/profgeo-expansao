@@ -80,7 +80,16 @@ def extrair(cursos, ies, output):
     lidos = 0
     resultados = []
     # Microdados nacionais de 2024: CSV separado por ponto e vírgula.
-    for bloco in pd.read_csv(cursos, sep=";", encoding="latin1", dtype=str,
+    # Detectar codificacao para preservar nomes acentuados.
+    with cursos.open("rb") as origem:
+        amostra = origem.read(1048576)
+    try:
+        amostra.decode("utf-8-sig")
+        codificacao = "utf-8-sig"
+    except UnicodeDecodeError:
+        codificacao = "latin1"
+    print(f"Codificacao INEP detectada: {codificacao}", flush=True)
+    for bloco in pd.read_csv(cursos, sep=";", encoding=codificacao, dtype=str,
                              chunksize=25000, low_memory=False, keep_default_na=False):
         cols = list(bloco.columns)
         if not lidos:
