@@ -1,10 +1,10 @@
-name: Integrar INEP Geografia 2024 - arquivo validado
+name: Integrar INEP Geografia 2024 - Drive fornecido
 on:
   workflow_dispatch:
 jobs:
   extrair:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 45
     permissions:
       contents: write
     steps:
@@ -12,31 +12,32 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install pandas requests certifi
-      - name: Obter arquivo oficial enviado à versão de fontes
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Instalar dependências
+        run: python -m pip install --disable-pip-version-check pandas gdown
+      - name: Obter CSV oficial de cursos já compartilhado no Drive
         run: |
-          gh release download fontes-2024 --repo "$GITHUB_REPOSITORY" --pattern "microdados_censo_da_educacao_superior_2024.zip" --dir .
-          mv "microdados_censo_da_educacao_superior_2024.zip" "inep_censo_superior_2024_fonte.zip"
-          ls -lh "inep_censo_superior_2024_fonte.zip"
-      - name: Extrair e filtrar dados de Geografia
+          gdown --id "1ZQNOiyOmPK8zIGANYysS5ILinJ0lHbbl" --output MICRODADOS_CADASTRO_CURSOS_2024.CSV
+          python - <<'PY'
+          from pathlib import Path
+          f = Path("MICRODADOS_CADASTRO_CURSOS_2024.CSV")
+          expected = 452844981
+          assert f.exists(), "Arquivo do Drive nao encontrado"
+          assert f.stat().st_size == expected, f"Download incompleto: {f.stat().st_size} != {expected}"
+          with f.open("rb") as fd:
+              h = fd.readline()
+          assert b"NO_CURSO" in h and b"CO_MUNICIPIO" in h and b"QT_MAT" in h, "Cabecalho INEP inesperado"
+          print("CSV INEP 2024 validado: ",f.stat().st_size,"bytes")
+          PY
+      - name: Gerar indicadores de Geografia com município de oferta
         run: |
-          set +e
-          python -u extrair_inep_2024.py > inep_processamento.log 2>&1
-          resultado=$?
-          cat inep_processamento.log
-          echo "STATUS_EXIT_CODE=$resultado" >> inep_processamento.log
-          exit "$resultado"
-      - name: Registrar diagnóstico e tabela filtrada
-        if: always()
+          python -u extrair_inep_2024.py --cursos MICRODADOS_CADASTRO_CURSOS_2024.CSV --ies inep_ies_2024.csv --saida inep_geografia_2024.csv | tee inep_processamento.log
+      - name: Registrar saída filtrada
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if [ -f inep_processamento.log ]; then git add inep_processamento.log; fi
-          if [ -f inep_geografia_2024.csv ]; then git add inep_geografia_2024.csv; fi
+          git add inep_geografia_2024.csv inep_processamento.log
           if ! git diff --cached --quiet; then
-            git commit -m "Processar fonte local de INEP 2024"
+            git commit -m "Integrar extrato INEP Geografia 2024 da fonte original Drive"
             git pull --rebase origin main
             git push
           fi
