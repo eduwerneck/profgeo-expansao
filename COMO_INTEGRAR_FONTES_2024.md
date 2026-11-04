@@ -1,30 +1,40 @@
-# Integrar INEP e CAPES 2024 sem depender dos servidores externos
+# Integração acadêmica INEP/CAPES 2024 — PROFGEO Expansão
 
-As tentativas anteriores falharam por conexão interrompida, timeout e HTTP 503. Por isso, os workflows agora são **manuais** e utilizam os **dois arquivos oficiais fornecidos pelo pesquisador** como anexos de uma versão GitHub, em vez de fazer novo download dos portais INEP e CAPES.
+## Fontes efetivamente fornecidas pelo pesquisador
+- CAPES Cursos 2024: arquivo XLSX entregue no Drive, versão 2025-12-01. Foi lido e filtrado, originando `capes_geografia_2024.csv`.
+- INEP Censo Educação Superior 2024: arquivos descompactados da pasta compartilhada pelo pesquisador:
+  - [cadastro das IES](https://drive.google.com/file/d/13hJyqLGytJSNuiygutXSHmai5Zz4xnjU/view)
+  - [cadastro dos cursos](https://drive.google.com/file/d/1ZQNOiyOmPK8zIGANYysS5ILinJ0lHbbl/view)
+  - [dicionário oficial das variáveis](https://drive.google.com/file/d/1nanHqvrMRg_CbCFsVL7nVR4Ch2RiEA2-/view)
+- O cadastro de IES já foi integrado como `inep_ies_2024.csv`. O CSV integral de cursos tem 452.844.981 bytes e **não deve ser versionado no GitHub**.
 
-## Uma única preparação dos arquivos
-1. No repositório, abra **Releases** > **Draft a new release**: https://github.com/eduwerneck/profgeo-expansao/releases/new
-2. Em **Choose a tag**, crie e selecione **fontes-2024**. Preencha o título `Fontes acadêmicas oficiais 2024`.
-3. Anexe os arquivos **originais, sem alterar os nomes**:
-   - `br-capes-colsucup-curso-2024-2025-12-01.xlsx` (CAPES 2024, ~1 MB)
-   - `microdados_censo_da_educacao_superior_2024.zip` (INEP 2024, ~457 MB)
-4. Publique a versão. **Atenção:** o repositório é público; os anexos da release também serão públicos. Use somente os microdados públicos oficiais, nunca tabelas com dados pessoais ou arquivos privados.
+## Processamento correto
+A extração não consulta os servidores INEP ou CAPES. O workflow `integrar_inep_2024.yml` acessa exclusivamente o CSV oficial compartilhado pelo usuário no Google Drive, verifica o tamanho e cabeçalho e o processa por blocos no GitHub Actions. A disponibilidade pública do link Drive foi confirmada pelos metadados.
 
-## Processamento
-Depois de publicar a release com os dois anexos, execute:
-- https://github.com/eduwerneck/profgeo-expansao/actions/workflows/integrar_capes_2024.yml > **Run workflow** > **Run workflow**;
-- https://github.com/eduwerneck/profgeo-expansao/actions/workflows/integrar_inep_2024.yml > **Run workflow** > **Run workflow**.
+O arquivo `extrair_inep_2024.py` usa:
+- `NO_CURSO` para identificar oferta em Geografia;
+- `CO_IES` para identificar a instituição;
+- `CO_CURSO` para identificar o curso;
+- `CO_MUNICIPIO` para identificar o **local de oferta**, diferente da sede administrativa da IES;
+- `TP_MODALIDADE_ENSINO` para distinguir presencial e a distância;
+- `QT_MAT` para matrículas por curso sem converter nulos em zero.
 
-Os workflows não são mais acionados por push e não consultam automaticamente o site de dados públicos. Eles baixam exclusivamente os anexos `fontes-2024` hospedados no GitHub.
+Executar localmente, caso prefira, com Python 3.11 e pandas:
+`python extrair_inep_2024.py --cursos /caminho/MICRODADOS_CADASTRO_CURSOS_2024.CSV --ies inep_ies_2024.csv --saida inep_geografia_2024.csv`
 
-## Saídas verificáveis
-- `capes_geografia_2024.csv`: cursos/programas da área Geografia; o arquivo não comprova linhas de pesquisa em ensino.
-- `inep_geografia_2024.csv`: cursos de graduação e variáveis disponíveis por IES/município.
-- `capes_processamento.log` e `inep_processamento.log`: auditoria do processamento.
-- A ausência de arquivo produzido **não** representa ausência de cursos; significa que a integração falhou.
-- **Não classificar A/B automaticamente** antes da conferência de campus/IES e das linhas de ensino. A REGIC continua exclusivamente como critério de desempate.
+Após a extração bem-sucedida, o workflow gera `diagnostico_academico_seis_localidades_2024.csv` com `gerar_diagnostico_academico_2024.py`. A integração continua **provisória para categoria A/B**, que exige validação de linhas e oferta institucional.
 
-## Integridade e reprodutibilidade
-Conservar as versões e anos de referência INEP/CAPES; conferir contagens, códigos IES, municípios e situações de curso; registrar exclusões e eventuais inconsistências. Para validar o processamento, usar o fluxo `validar_bases.yml`.
+## Situação e testes
+CAPES 2024: **integrada** — 134 registros de cursos de Geografia, 80 programas, 121 cursos em funcionamento e 13 em projeto. Um programa pode ter cursos em funcionamento e cursos em projeto, portanto esses conjuntos não são mutuamente exclusivos por programa.
 
-Em caso de falha após o upload, abrir a execução GitHub Actions e examinar a etapa **Extrair e filtrar dados de Geografia**, evitando criar arquivos de saída artificiais ou atribuir zero a campos ausentes.
+INEP 2024: cadastro de IES integrado (2.561 IES); cadastro nacional de cursos preparado para processamento, sem afirmar resultados ainda não gerados.
+
+O ranking territorial e as regras REGIC permanecem inalterados. A REGIC não substitui classificação institucional. As três simulações municipais não constituem IES candidatas identificadas.
+
+## Controle de qualidade
+- Não inferir oferta municipal a partir de `CO_MUNICIPIO_IES` (sede da IES).
+- A oferta EaD não deve ser automaticamente atribuída ao município da sede.
+- Não classificar como ativo um curso CAPES `EM PROJETO`.
+- Conferir códigos da IES no INEP/CAPES e município de oferta antes de propor A/B.
+- Não interpretar dados ausentes como ausência de cursos.
+- Confirmar a execução completa dos testes de integridade e o processamento do arquivo de 453 MB antes de comunicar integração plena.
