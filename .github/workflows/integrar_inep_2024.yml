@@ -35,6 +35,8 @@ jobs:
       - name: Gerar indicadores de Geografia com município de oferta
         run: |
           python -u extrair_inep_2024.py --cursos MICRODADOS_CADASTRO_CURSOS_2024.CSV --ies inep_ies_2024.csv --saida inep_geografia_2024.csv | tee inep_processamento.log
+      - name: Validar integridade acadêmica INEP e CAPES
+        run: python -u validar_dados_academicos_2024.py
       - name: Cruzar INEP e CAPES nas seis localidades
         run: python -u gerar_diagnostico_academico_2024.py
       - name: Registrar saída filtrada
