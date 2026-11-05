@@ -298,3 +298,38 @@ if resultados is not None and not resultados.empty:
         )
 else:
     st.caption("Envie o arquivo de candidaturas para visualizar a classificação e o mapa atualizado.")
+
+
+st.divider()
+with st.expander("Fundamentação teórica, metodologia e referência científica", expanded=False):
+    st.markdown(
+        "**Artigo de referência**\n\n"
+        "STEINKE, Valdir Adilson; DE DAVID, Cesar; RIBEIRO, Eduardo Augusto Werneck; "
+        "CALANDRO, Thiago Luiz; SILVA, Cecília Félix Andrade; SALGADO, Pedro Henrique Camelo. "
+        "**Formação de professores de Geografia no Brasil e expansão da Rede PROFGEO.** "
+        "*Geografia Ensino & Pesquisa*, Santa Maria, v. 29, e91098, 2025. "
+        "[https://doi.org/10.5902/2236499491098]"
+        "(https://doi.org/10.5902/2236499491098)."
+    )
+    st.markdown(
+        "**Fundamentação metodológica.** O artigo utiliza a espacialização, em ambiente "
+        "de Sistema de Informação Geográfica (SIG), da graduação em Geografia, das "
+        "matrículas, da pós-graduação com linhas de pesquisa em ensino de Geografia e "
+        "dos polos PROFGEO, identificando vazios territoriais e prioridades de expansão. "
+        "O aplicativo operacionaliza esse diagnóstico por meio de distâncias geodésicas "
+        "ao polo mais próximo e faixas territoriais."
+    )
+    st.markdown(
+        "**Extensões operacionais da ferramenta.** O desempate pela hierarquia urbana "
+        "REGIC 2018, a carga de arquivos CSV/XLSX e os filtros são procedimentos "
+        "computacionais implementados para simular e comparar cenários. "
+        "Não constituem, por si só, avaliação de demanda efetiva nem validação "
+        "de candidatura ou elegibilidade institucional."
+    )
+    st.caption(
+        "As classes de distância representam lacunas de proximidade geográfica, "
+        "não tempos de deslocamento. Os dados acadêmicos, o campus-sede e as "
+        "linhas de pesquisa devem ser verificados em fontes oficiais. "
+        "A análise multicampi exige localizar o campus proposto, sem deduzi-lo "
+        "do município de oferta da graduação."
+    )
